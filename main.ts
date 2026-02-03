@@ -39,8 +39,11 @@ export default class TodoPlugin extends Plugin {
             this.app.workspace.getUnpinnedLeaf().openFile(file);
           }
         },
-        toggleTodo: (todo: TodoItem, newStatus: TodoItemStatus) => {
+        toggleTodo: async (todo: TodoItem, newStatus: TodoItemStatus) => {
           this.todoIndex.setStatus(todo, newStatus);
+          if (newStatus === TodoItemStatus.Done) {
+            await this.generateDailyReport(todo);
+          }
         },
       };
       this.view = new TodoItemView(leaf, props);
@@ -51,6 +54,33 @@ export default class TodoPlugin extends Plugin {
       await this.initLeaf();
       await this.triggerIndex();
     });
+  }
+
+  async generateDailyReport(todo: TodoItem): Promise<void> {
+    if (!this.settings.enableDailyReport) return;
+
+    const reportPath = this.settings.dailyReportPath;
+    if (!reportPath) return;
+
+    if (!(await this.app.vault.adapter.exists(reportPath))) {
+      await this.app.vault.createFolder(reportPath);
+    }
+
+    const today = DateTime.now().toFormat('yyyy-MM-dd');
+    const filePath = `${reportPath}/${today}.md`;
+
+    let file = this.app.vault.getAbstractFileByPath(filePath);
+
+    if (!file) {
+      file = await this.app.vault.create(filePath, '');
+    }
+
+    if (file instanceof TFile) {
+      const content = await this.app.vault.read(file);
+      const prefix = content ? '\n' : '';
+      const newContent = content + prefix + `- ${todo.description}`;
+      await this.app.vault.modify(file, newContent);
+    }
   }
 
   onunload(): void {

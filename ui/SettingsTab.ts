@@ -78,6 +78,28 @@ export class SettingsTab extends PluginSettingTab {
           this.plugin.updateSettings({ ...currentSettings, openFilesInNewLeaf });
         });
       });
+
+    new Setting(containerEl)
+      .setName('Enable daily report')
+      .setDesc('If enabled, a daily report will be generated when a todo is completed.')
+      .addToggle((toggle) => {
+        toggle.setValue(currentSettings.enableDailyReport);
+        toggle.onChange(async (enableDailyReport) => {
+          this.plugin.updateSettings({ ...currentSettings, enableDailyReport });
+        });
+      });
+
+    new Setting(containerEl)
+      .setName('Daily report path')
+      .setDesc('The folder where daily reports will be generated.')
+      .addText((text) =>
+        text.setPlaceholder(currentSettings.dailyReportPath).onChange(async (dailyReportPath) => {
+          if (dailyReportPath.length === 0) {
+            dailyReportPath = DEFAULT_SETTINGS.dailyReportPath;
+          }
+          this.plugin.updateSettings({ ...currentSettings, dailyReportPath });
+        }),
+      );
   }
 
   private dateTagFormatDescription(error?: string): DocumentFragment {
