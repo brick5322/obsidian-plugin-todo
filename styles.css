@@ -68,6 +68,14 @@ div.todo-item-view-item-link {
     flex-shrink: 0;
     cursor: pointer;
     padding-left: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+div.todo-item-view-item-link:hover {
+    transform: translateY(-3px);
 }
 
 div.todo-item-view-item-link svg, div.todo-item-view-toolbar-item svg {
