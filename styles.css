@@ -1,6 +1,3 @@
-div.todo-item-view-container {
-}
-
 div.todo-item-view-toolbar {
     display: flex;
     justify-content: center;
@@ -41,16 +38,19 @@ div.todo-item-view-item span.due-date {
     border-radius: 12px;
     background-color: #fbb034;
     border-color: #fbb034;
+    color: black;
 }
 
 div.todo-item-view-item span.due-date.overdue {
     background-color: #ff2400;
     border-color: #ff2400;
+    color: black;
 }
 
 div.todo-item-view-item span.due-date.future-due {
     background-color: #6fdf94;
     border-color: #6fdf94;
+    color: black;
 }
 
 div.todo-item-view-item-checkbox {
@@ -76,6 +76,10 @@ div.todo-item-view-item-link {
 
 div.todo-item-view-item-link:hover {
     transform: translateY(-3px);
+}
+
+div.todo-item-view-item-link:hover svg {
+    fill: #7f6df2cc;
 }
 
 div.todo-item-view-item-link svg, div.todo-item-view-toolbar-item svg {
