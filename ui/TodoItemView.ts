@@ -119,6 +119,9 @@ export class TodoItemView extends ItemView {
           });
           el.createDiv('todo-item-view-item-description', (el) => {
             MarkdownRenderer.renderMarkdown(todo.description, el, todo.sourceFilePath, this);
+            el.createDiv('todo-item-view-item-source-file', (el) => {
+              el.setText(todo.sourceFilePath);
+            });
             if (todo.actionDate) {
               el.createSpan('due-date', (el) => {
                 if (todo.actionDate.startOf('day') < DateTime.now().startOf('day')) {

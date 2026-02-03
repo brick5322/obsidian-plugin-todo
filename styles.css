@@ -77,3 +77,10 @@ div.todo-item-view-item-link svg, div.todo-item-view-toolbar-item svg {
 div.todo-item-view-toolbar-item.active svg {
     fill: #7f6df2;
 }
+
+div.todo-item-view-item-source-file {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    margin-top: 4px;
+    word-break: break-all;
+}
