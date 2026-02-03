@@ -5,16 +5,18 @@ div.todo-item-view-toolbar {
     display: flex;
     justify-content: center;
     align-items: center;
-    border-bottom: 1px solid #cccccc;
-    border-top: 1px solid #cccccc;
+    border-bottom: 1px solid #cccccc33;
 }
 
 div.todo-item-view-toolbar-item {
     padding-left: 15px;
     padding-right: 15px;
-    padding-top: 8px;
-    padding-bottom: 2px;
     cursor: pointer;
+    transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+div.todo-item-view-toolbar-item:hover {
+      transform: translateY(-3px);
 }
 
 div.todo-item-view-items {
