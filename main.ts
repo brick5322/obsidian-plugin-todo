@@ -188,12 +188,16 @@ export default class TodoPlugin extends Plugin {
       // Remove whitelist prefix if present
       for (const prefix of whitelist) {
         if (displayPath.startsWith(prefix)) {
-          displayPath = displayPath.substring(prefix.length);
-          // Remove leading slash if present
-          if (displayPath.startsWith('/')) {
-            displayPath = displayPath.substring(1);
+          // Check if it's an exact match or followed by a slash
+          // to avoid partial matches like "folder123" matching "folder1"
+          if (displayPath.length === prefix.length || displayPath.charAt(prefix.length) === '/') {
+            displayPath = displayPath.substring(prefix.length);
+            // Remove leading slash if present
+            if (displayPath.startsWith('/')) {
+              displayPath = displayPath.substring(1);
+            }
+            break; // Apply only the first matching whitelist prefix
           }
-          break; // Apply only the first matching whitelist prefix
         }
       }
 
@@ -271,7 +275,7 @@ export default class TodoPlugin extends Plugin {
       const tasks = await todoParser.parseTasks(f.path, content);
 
       tasks.forEach((t) => {
-        if (t.status === TodoItemStatus.Todo) {
+        if (t.status === TodoItemStatus.Todo && !t.isSomedayMaybeNote) {
           nextTasks.push({
             path: f.path,
             content: t.description,
