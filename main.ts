@@ -107,16 +107,14 @@ export default class TodoPlugin extends Plugin {
     }
 
     // Add the new task
-    // Format: Folder/Filename: Task Content
-    // Remove extension from filename
-    const formattedPath = todo.sourceFilePath.replace(/\.md$/, '');
-    const formattedTask = `${formattedPath}: ${todo.description}`;
-
-    this.settings.dailyReportData.completedTasks.push(formattedTask);
+    this.settings.dailyReportData.completedTasks.push({
+      path: todo.sourceFilePath,
+      content: todo.description,
+    });
     await this.saveData(this.settings);
   }
 
-  async flushDailyReport(date: string, tasks: string[]): Promise<void> {
+  async flushDailyReport(date: string, tasks: { path: string; content: string }[]): Promise<void> {
     const reportPath = this.settings.dailyReportPath;
     if (!reportPath) return;
 
@@ -141,12 +139,98 @@ export default class TodoPlugin extends Plugin {
         newContent += prefix + header;
       }
 
-      tasks.forEach((task) => {
-        newContent += `- ${task}\n`;
-      });
+      newContent += this.formatTasksHierarchically(tasks);
 
       await this.app.vault.modify(file, newContent);
     }
+  }
+
+  private formatTasksHierarchically(tasks: ({ path: string; content: string } | string)[]): string {
+    interface TaskNode {
+      name: string;
+      children: Map<string, TaskNode>;
+      tasks: string[];
+    }
+
+    const root: TaskNode = { name: 'root', children: new Map(), tasks: [] };
+    const whitelist = this.settings.dailyReportWhitelist
+      .split(/[,，\n]/)
+      .map((d) => d.trim())
+      .filter((d) => d.length > 0);
+
+    tasks.forEach((task) => {
+      let displayPath = '';
+      let content = '';
+
+      if (typeof task === 'string') {
+        // Handle legacy string format
+        // Try to parse "Folder/Filename: Content" format if possible,
+        // or just put it under "Unknown" or root.
+        if (task.includes(': ')) {
+          const splitIndex = task.indexOf(': ');
+          displayPath = task.substring(0, splitIndex);
+          content = task.substring(splitIndex + 2);
+        } else {
+          displayPath = 'Others';
+          content = task;
+        }
+      } else {
+        if (!task.path) {
+          // Fallback if path is missing in object
+          displayPath = 'Others';
+          content = task.content || JSON.stringify(task);
+        } else {
+          displayPath = task.path.replace(/\.md$/, '');
+          content = task.content;
+        }
+      }
+
+      // Remove whitelist prefix if present
+      for (const prefix of whitelist) {
+        if (displayPath.startsWith(prefix)) {
+          displayPath = displayPath.substring(prefix.length);
+          // Remove leading slash if present
+          if (displayPath.startsWith('/')) {
+            displayPath = displayPath.substring(1);
+          }
+          break; // Apply only the first matching whitelist prefix
+        }
+      }
+
+      const parts = displayPath.split('/');
+      let currentNode = root;
+
+      parts.forEach((part) => {
+        if (!currentNode.children.has(part)) {
+          currentNode.children.set(part, { name: part, children: new Map(), tasks: [] });
+        }
+        currentNode = currentNode.children.get(part)!;
+      });
+
+      currentNode.tasks.push(content);
+    });
+
+    const renderTree = (node: TaskNode, level: number): string => {
+      let output = '';
+      const indent = '    '.repeat(level);
+
+      // Render children folders
+      const sortedKeys = Array.from(node.children.keys()).sort();
+      for (const key of sortedKeys) {
+        const child = node.children.get(key)!;
+        output += `${indent}- ${child.name}\n`;
+        output += renderTree(child, level + 1);
+      }
+
+      // Render tasks in this folder
+      node.tasks.forEach((t) => {
+        output += `${indent}- ${t}\n`;
+      });
+
+      return output;
+    };
+
+    return renderTree(root, 0);
   }
 
   async generateDailySummary(): Promise<void> {
@@ -172,12 +256,12 @@ export default class TodoPlugin extends Plugin {
     // Use data from settings for completed tasks
     const completedTasks = this.settings.dailyReportData?.completedTasks || [];
 
-    // Scan for next tasks (unchanged logic)
+    // Scan for next tasks
     const dateParser = new DateParser(this.settings.dateTagFormat, this.settings.dateFormat);
     const todoParser = new TodoParser(dateParser);
     const files = this.app.vault.getMarkdownFiles();
     const oneWeekAgo = DateTime.now().minus({ days: 7 }).toMillis();
-    const nextTasks: string[] = [];
+    const nextTasks: { path: string; content: string }[] = [];
 
     for (const f of files) {
       if (f.stat.mtime < oneWeekAgo) continue;
@@ -188,8 +272,10 @@ export default class TodoPlugin extends Plugin {
 
       tasks.forEach((t) => {
         if (t.status === TodoItemStatus.Todo) {
-          const formattedPath = f.path.replace(/\.md$/, '');
-          nextTasks.push(`${formattedPath}: ${t.description}`);
+          nextTasks.push({
+            path: f.path,
+            content: t.description,
+          });
         }
       });
     }
@@ -198,13 +284,13 @@ export default class TodoPlugin extends Plugin {
 
     if (completedTasks.length > 0) {
       summaryContent += `### ${this.settings.dailyReportTodayHeader}\n`;
-      completedTasks.forEach((t) => (summaryContent += `- ${t}\n`));
+      summaryContent += this.formatTasksHierarchically(completedTasks);
       summaryContent += '\n';
     }
 
     if (nextTasks.length > 0) {
       summaryContent += `### ${this.settings.dailyReportNextHeader}\n`;
-      nextTasks.forEach((t) => (summaryContent += `- ${t}\n`));
+      summaryContent += this.formatTasksHierarchically(nextTasks);
       summaryContent += '\n';
     }
 

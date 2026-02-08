@@ -9,7 +9,7 @@ export interface TodoPluginSettings {
   dailyReportNextHeader: string;
   dailyReportData: {
     date: string;
-    completedTasks: string[];
+    completedTasks: { path: string; content: string }[];
   };
 }
 
