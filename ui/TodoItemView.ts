@@ -3,6 +3,7 @@ import { ItemView, MarkdownRenderer, WorkspaceLeaf } from 'obsidian';
 import { VIEW_TYPE_TODO } from '../constants';
 import { TodoItem, TodoItemStatus } from '../model/TodoItem';
 import { RenderIcon, Icon } from '../ui/icons';
+import { t } from '../lang/helpers';
 
 enum TodoItemViewPane {
   Today,
@@ -71,7 +72,7 @@ export class TodoItemView extends ItemView {
         this.renderItems(el);
       });
       el.createDiv('todo-item-view-footer', (el) => {
-        el.createEl('button', { text: 'Generate Daily Summary' }, (btn) => {
+        el.createEl('button', { text: t('GENERATE_DAILY_SUMMARY') }, (btn) => {
           btn.onClickEvent(() => this.props.onGenerateDailySummary());
           btn.style.width = '100%';
         });

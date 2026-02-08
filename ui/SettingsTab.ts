@@ -2,6 +2,7 @@ import { App, PluginSettingTab, Setting } from 'obsidian';
 import { DateTime } from 'luxon';
 import TodoPlugin from 'main';
 import { DEFAULT_SETTINGS } from '../model/TodoPluginSettings';
+import { t } from '../lang/helpers';
 
 export class SettingsTab extends PluginSettingTab {
   private plugin: TodoPlugin;
@@ -17,11 +18,11 @@ export class SettingsTab extends PluginSettingTab {
 
     containerEl.empty();
 
-    containerEl.createEl('h2', { text: 'Obsidian TODO Settings' });
+    containerEl.createEl('h2', { text: t('SETTINGS_HEADING') });
 
     const tagFormatSetting = new Setting(containerEl);
     tagFormatSetting
-      .setName('Date tag format')
+      .setName(t('DATE_TAG_FORMAT_NAME'))
       .setDesc(this.dateTagFormatDescription())
       .addText((text) =>
         text.setPlaceholder(currentSettings.dateTagFormat).onChange(async (dateTagFormat) => {
@@ -32,7 +33,7 @@ export class SettingsTab extends PluginSettingTab {
 
           if (!this.validateDateTag(dateTagFormat)) {
             tagFormatSetting.descEl.empty();
-            tagFormatSetting.setDesc(this.dateTagFormatDescription('Date tag must include %date% token.'));
+            tagFormatSetting.setDesc(this.dateTagFormatDescription(t('DATE_TAG_FORMAT_MUST_INCLUDE')));
             return;
           }
 
@@ -45,7 +46,7 @@ export class SettingsTab extends PluginSettingTab {
 
     const dateFormatSetting = new Setting(containerEl);
     dateFormatSetting
-      .setName('Date format')
+      .setName(t('DATE_FORMAT_NAME'))
       .setDesc(this.dateFormatDescription())
       .addText((text) =>
         text.setPlaceholder(currentSettings.dateFormat).onChange(async (dateFormat) => {
@@ -68,10 +69,8 @@ export class SettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName('Open files in a new leaf')
-      .setDesc(
-        'If enabled, when opening the file containing a TODO that file will open in a new leaf. If disabled, it will replace the file that you currently have open.',
-      )
+      .setName(t('OPEN_IN_NEW_LEAF_NAME'))
+      .setDesc(t('OPEN_IN_NEW_LEAF_DESC'))
       .addToggle((toggle) => {
         toggle.setValue(currentSettings.openFilesInNewLeaf);
         toggle.onChange(async (openFilesInNewLeaf) => {
@@ -79,11 +78,11 @@ export class SettingsTab extends PluginSettingTab {
         });
       });
 
-    new Setting(containerEl).setName('Daily report').setHeading();
+    new Setting(containerEl).setName(t('DAILY_REPORT_HEADING')).setHeading();
 
     new Setting(containerEl)
-      .setName('Enable daily report')
-      .setDesc('If enabled, a daily report will be generated when a todo is completed.')
+      .setName(t('ENABLE_DAILY_REPORT_NAME'))
+      .setDesc(t('ENABLE_DAILY_REPORT_DESC'))
       .addToggle((toggle) => {
         toggle.setValue(currentSettings.enableDailyReport);
         toggle.onChange(async (enableDailyReport) => {
@@ -92,8 +91,8 @@ export class SettingsTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
-      .setName('Daily report path')
-      .setDesc('The folder where daily reports will be generated.')
+      .setName(t('DAILY_REPORT_PATH_NAME'))
+      .setDesc(t('DAILY_REPORT_PATH_DESC'))
       .addText((text) =>
         text.setPlaceholder(currentSettings.dailyReportPath).onChange(async (dailyReportPath) => {
           if (dailyReportPath.length === 0) {
@@ -104,10 +103,8 @@ export class SettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName('Daily report whitelist')
-      .setDesc(
-        'Only files in these folders will be included in the daily report. Separate folders with a comma or newline.',
-      )
+      .setName(t('DAILY_REPORT_WHITELIST_NAME'))
+      .setDesc(t('DAILY_REPORT_WHITELIST_DESC'))
       .addTextArea((text) =>
         text
           .setPlaceholder('Folder/Subfolder, AnotherFolder')
@@ -118,8 +115,8 @@ export class SettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Today's work header")
-      .setDesc("The header for today's completed tasks in the daily report.")
+      .setName(t('TODAY_WORK_HEADER_NAME'))
+      .setDesc(t('TODAY_WORK_HEADER_DESC'))
       .addText((text) =>
         text
           .setPlaceholder(DEFAULT_SETTINGS.dailyReportTodayHeader)
@@ -130,8 +127,8 @@ export class SettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName('Next tasks header')
-      .setDesc('The header for next tasks in the daily report.')
+      .setName(t('NEXT_TASKS_HEADER_NAME'))
+      .setDesc(t('NEXT_TASKS_HEADER_DESC'))
       .addText((text) =>
         text
           .setPlaceholder(DEFAULT_SETTINGS.dailyReportNextHeader)
@@ -144,32 +141,32 @@ export class SettingsTab extends PluginSettingTab {
 
   private dateTagFormatDescription(error?: string): DocumentFragment {
     const el = document.createDocumentFragment();
-    el.appendText('The format in which the due date is included in the task description.');
+    el.appendText(t('DATE_TAG_FORMAT_DESC'));
     el.appendChild(document.createElement('br'));
-    el.appendText('Must include the %date% token.');
+    el.appendText(t('DATE_TAG_FORMAT_MUST_INCLUDE'));
     el.appendChild(document.createElement('br'));
-    el.appendText("To configure the format of the date, see 'Date format'.");
+    el.appendText(t('DATE_TAG_FORMAT_SEE_DATE_FORMAT'));
     if (error != null) {
       el.appendChild(document.createElement('br'));
-      el.appendText(`Error: ${error}`);
+      el.appendText(`${t('ERROR_PREFIX')}${error}`);
     }
     return el;
   }
 
   private dateFormatDescription(error?: string): DocumentFragment {
     const el = document.createDocumentFragment();
-    el.appendText('Dates in this format will be recognised as due dates.');
+    el.appendText(t('DATE_FORMAT_DESC'));
     el.appendChild(document.createElement('br'));
 
     const a = document.createElement('a');
     a.href = 'https://moment.github.io/luxon/#/formatting?id=table-of-tokens';
-    a.text = 'See the documentation for supported tokens.';
+    a.text = t('SEE_DOCS');
     a.target = '_blank';
     el.appendChild(a);
 
     if (error != null) {
       el.appendChild(document.createElement('br'));
-      el.appendText(`Error: ${error}`);
+      el.appendText(`${t('ERROR_PREFIX')}${error}`);
     }
     return el;
   }

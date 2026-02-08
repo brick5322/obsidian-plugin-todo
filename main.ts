@@ -9,6 +9,7 @@ import { DateFormatter } from 'util/DateFormatter';
 import { DateTime } from 'luxon';
 import { TodoParser } from './model/TodoParser';
 import { DateParser } from './util/DateParser';
+import { t } from './lang/helpers';
 
 export default class TodoPlugin extends Plugin {
   private dateFormatter: DateFormatter;
@@ -240,7 +241,7 @@ export default class TodoPlugin extends Plugin {
   async generateDailySummary(): Promise<void> {
     const reportPath = this.settings.dailyReportPath;
     if (!reportPath) {
-      new Notice('Daily report path is not set.');
+      new Notice(t('DAILY_REPORT_PATH_NOT_SET'));
       return;
     }
 
@@ -299,12 +300,27 @@ export default class TodoPlugin extends Plugin {
     }
 
     if (summaryContent === '') {
-      new Notice('No tasks found to summarize.');
+      new Notice(t('NO_TASKS_FOUND'));
       return;
     }
 
     await this.app.vault.modify(file, summaryContent);
-    new Notice('Daily summary generated.');
+    new Notice(t('DAILY_SUMMARY_GENERATED'));
+
+    // Open the file in a new leaf or existing leaf
+    const leaves = this.app.workspace.getLeavesOfType('markdown');
+    const existingLeaf = leaves.find((leaf) => leaf.view.getState().file === file.path);
+
+    if (existingLeaf) {
+      this.app.workspace.setActiveLeaf(existingLeaf, true, true);
+      return;
+    }
+
+    if (this.settings.openFilesInNewLeaf && this.app.workspace.getActiveFile()) {
+      await this.app.workspace.getLeaf(true).openFile(file);
+    } else {
+      await this.app.workspace.getLeaf(false).openFile(file);
+    }
   }
 
   onunload(): void {
