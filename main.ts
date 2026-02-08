@@ -135,7 +135,7 @@ export default class TodoPlugin extends Plugin {
       const content = await this.app.vault.read(file);
       let newContent = content;
 
-      const header = `## ${this.settings.dailyReportTodayHeader}\n`;
+      const header = `### ${this.settings.dailyReportTodayHeader}\n`;
       if (!newContent.includes(header)) {
         const prefix = newContent ? '\n' : '';
         newContent += prefix + header;
@@ -197,13 +197,13 @@ export default class TodoPlugin extends Plugin {
     let summaryContent = '';
 
     if (completedTasks.length > 0) {
-      summaryContent += `## ${this.settings.dailyReportTodayHeader}\n`;
+      summaryContent += `### ${this.settings.dailyReportTodayHeader}\n`;
       completedTasks.forEach((t) => (summaryContent += `- ${t}\n`));
       summaryContent += '\n';
     }
 
     if (nextTasks.length > 0) {
-      summaryContent += `## ${this.settings.dailyReportNextHeader}\n`;
+      summaryContent += `### ${this.settings.dailyReportNextHeader}\n`;
       nextTasks.forEach((t) => (summaryContent += `- ${t}\n`));
       summaryContent += '\n';
     }

@@ -79,6 +79,8 @@ export class SettingsTab extends PluginSettingTab {
         });
       });
 
+    new Setting(containerEl).setName('Daily report').setHeading();
+
     new Setting(containerEl)
       .setName('Enable daily report')
       .setDesc('If enabled, a daily report will be generated when a todo is completed.')
