@@ -15,6 +15,7 @@ export interface TodoItemViewProps {
   formatDate: (date: DateTime) => string;
   openFile: (filePath: string) => void;
   toggleTodo: (todo: TodoItem, newStatus: TodoItemStatus) => void;
+  onGenerateDailySummary: () => void;
 }
 
 interface TodoItemViewState {
@@ -68,6 +69,12 @@ export class TodoItemView extends ItemView {
       });
       el.createDiv('todo-item-view-items', (el) => {
         this.renderItems(el);
+      });
+      el.createDiv('todo-item-view-footer', (el) => {
+        el.createEl('button', { text: 'Generate Daily Summary' }, (btn) => {
+          btn.onClickEvent(() => this.props.onGenerateDailySummary());
+          btn.style.width = '100%';
+        });
       });
     });
   }

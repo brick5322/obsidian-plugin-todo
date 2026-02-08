@@ -1,0 +1,7 @@
+{
+  "dateFormat": "yyyy-MM-dd",
+  "dateTagFormat": "#%date%",
+  "openFilesInNewLeaf": true,
+  "enableDailyReport": true,
+  "dailyReportPath": "Daily Reports"
+}

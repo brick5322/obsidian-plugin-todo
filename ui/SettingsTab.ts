@@ -100,6 +100,44 @@ export class SettingsTab extends PluginSettingTab {
           this.plugin.updateSettings({ ...currentSettings, dailyReportPath });
         }),
       );
+
+    new Setting(containerEl)
+      .setName('Daily report whitelist')
+      .setDesc(
+        'Only files in these folders will be included in the daily report. Separate folders with a comma or newline.',
+      )
+      .addTextArea((text) =>
+        text
+          .setPlaceholder('Folder/Subfolder, AnotherFolder')
+          .setValue(currentSettings.dailyReportWhitelist)
+          .onChange(async (dailyReportWhitelist) => {
+            this.plugin.updateSettings({ ...currentSettings, dailyReportWhitelist });
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Today's work header")
+      .setDesc("The header for today's completed tasks in the daily report.")
+      .addText((text) =>
+        text
+          .setPlaceholder(DEFAULT_SETTINGS.dailyReportTodayHeader)
+          .setValue(currentSettings.dailyReportTodayHeader)
+          .onChange(async (dailyReportTodayHeader) => {
+            this.plugin.updateSettings({ ...currentSettings, dailyReportTodayHeader });
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName('Next tasks header')
+      .setDesc('The header for next tasks in the daily report.')
+      .addText((text) =>
+        text
+          .setPlaceholder(DEFAULT_SETTINGS.dailyReportNextHeader)
+          .setValue(currentSettings.dailyReportNextHeader)
+          .onChange(async (dailyReportNextHeader) => {
+            this.plugin.updateSettings({ ...currentSettings, dailyReportNextHeader });
+          }),
+      );
   }
 
   private dateTagFormatDescription(error?: string): DocumentFragment {

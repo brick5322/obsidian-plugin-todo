@@ -20,6 +20,8 @@ div.todo-item-view-items {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
+    flex-grow: 1;
+    overflow-y: auto;
 }
 
 div.todo-item-view-item {
@@ -95,4 +97,15 @@ div.todo-item-view-item-source-file {
     color: var(--text-muted);
     margin-top: 4px;
     word-break: break-all;
+}
+
+div.todo-item-view-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+div.todo-item-view-footer {
+    padding: 10px;
+    border-top: 1px solid #cccccc33;
 }
