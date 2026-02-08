@@ -52,7 +52,7 @@ export default class TodoPlugin extends Plugin {
         toggleTodo: async (todo: TodoItem, newStatus: TodoItemStatus) => {
           this.todoIndex.setStatus(todo, newStatus);
           if (newStatus === TodoItemStatus.Done) {
-            await this.generateDailyReport(todo);
+            await this.trackCompletedTask(todo);
           }
         },
         onGenerateDailySummary: async () => {
@@ -79,10 +79,44 @@ export default class TodoPlugin extends Plugin {
     return dirs.some((dir) => path.startsWith(dir));
   }
 
-  async generateDailyReport(todo: TodoItem): Promise<void> {
+  async trackCompletedTask(todo: TodoItem): Promise<void> {
     if (!this.settings.enableDailyReport) return;
     if (!this.isPathWhitelisted(todo.sourceFilePath)) return;
 
+    const today = DateTime.now().toFormat('yyyy-MM-dd');
+
+    // Initialize dailyReportData if it doesn't exist
+    if (!this.settings.dailyReportData) {
+      this.settings.dailyReportData = {
+        date: today,
+        completedTasks: [],
+      };
+    }
+
+    // Check if the date has changed
+    if (this.settings.dailyReportData.date !== today) {
+      // Flush yesterday's data if there are any completed tasks
+      if (this.settings.dailyReportData.completedTasks.length > 0) {
+        await this.flushDailyReport(this.settings.dailyReportData.date, this.settings.dailyReportData.completedTasks);
+      }
+      // Reset for today
+      this.settings.dailyReportData = {
+        date: today,
+        completedTasks: [],
+      };
+    }
+
+    // Add the new task
+    // Format: Folder/Filename: Task Content
+    // Remove extension from filename
+    const formattedPath = todo.sourceFilePath.replace(/\.md$/, '');
+    const formattedTask = `${formattedPath}: ${todo.description}`;
+
+    this.settings.dailyReportData.completedTasks.push(formattedTask);
+    await this.saveData(this.settings);
+  }
+
+  async flushDailyReport(date: string, tasks: string[]): Promise<void> {
     const reportPath = this.settings.dailyReportPath;
     if (!reportPath) return;
 
@@ -90,9 +124,7 @@ export default class TodoPlugin extends Plugin {
       await this.app.vault.createFolder(reportPath);
     }
 
-    const today = DateTime.now().toFormat('yyyy-MM-dd');
-    const filePath = `${reportPath}/${today}.md`;
-
+    const filePath = `${reportPath}/${date}.md`;
     let file = this.app.vault.getAbstractFileByPath(filePath);
 
     if (!file) {
@@ -101,8 +133,18 @@ export default class TodoPlugin extends Plugin {
 
     if (file instanceof TFile) {
       const content = await this.app.vault.read(file);
-      const prefix = content ? '\n' : '';
-      const newContent = content + prefix + `- ${todo.description}`;
+      let newContent = content;
+
+      const header = `## ${this.settings.dailyReportTodayHeader}\n`;
+      if (!newContent.includes(header)) {
+        const prefix = newContent ? '\n' : '';
+        newContent += prefix + header;
+      }
+
+      tasks.forEach((task) => {
+        newContent += `- ${task}\n`;
+      });
+
       await this.app.vault.modify(file, newContent);
     }
   }
@@ -127,12 +169,14 @@ export default class TodoPlugin extends Plugin {
 
     if (!(file instanceof TFile)) return;
 
+    // Use data from settings for completed tasks
+    const completedTasks = this.settings.dailyReportData?.completedTasks || [];
+
+    // Scan for next tasks (unchanged logic)
     const dateParser = new DateParser(this.settings.dateTagFormat, this.settings.dateFormat);
     const todoParser = new TodoParser(dateParser);
     const files = this.app.vault.getMarkdownFiles();
     const oneWeekAgo = DateTime.now().minus({ days: 7 }).toMillis();
-
-    const completedTasks: string[] = [];
     const nextTasks: string[] = [];
 
     for (const f of files) {
@@ -143,10 +187,9 @@ export default class TodoPlugin extends Plugin {
       const tasks = await todoParser.parseTasks(f.path, content);
 
       tasks.forEach((t) => {
-        if (t.status === TodoItemStatus.Done) {
-          completedTasks.push(t.description);
-        } else if (t.status === TodoItemStatus.Todo) {
-          nextTasks.push(t.description);
+        if (t.status === TodoItemStatus.Todo) {
+          const formattedPath = f.path.replace(/\.md$/, '');
+          nextTasks.push(`${formattedPath}: ${t.description}`);
         }
       });
     }
@@ -170,9 +213,7 @@ export default class TodoPlugin extends Plugin {
       return;
     }
 
-    const currentContent = await this.app.vault.read(file);
-    const prefix = currentContent ? '\n' : '';
-    await this.app.vault.modify(file, currentContent + prefix + summaryContent);
+    await this.app.vault.modify(file, summaryContent);
     new Notice('Daily summary generated.');
   }
 

@@ -7,6 +7,10 @@ export interface TodoPluginSettings {
   dailyReportWhitelist: string;
   dailyReportTodayHeader: string;
   dailyReportNextHeader: string;
+  dailyReportData: {
+    date: string;
+    completedTasks: string[];
+  };
 }
 
 export const DEFAULT_SETTINGS: TodoPluginSettings = {
@@ -18,4 +22,8 @@ export const DEFAULT_SETTINGS: TodoPluginSettings = {
   dailyReportWhitelist: '',
   dailyReportTodayHeader: '【今日工作】',
   dailyReportNextHeader: '【明日工作】',
+  dailyReportData: {
+    date: '',
+    completedTasks: [],
+  },
 };
