@@ -111,39 +111,62 @@ export class TodoItemView extends ItemView {
   }
 
   private renderItems(container: HTMLDivElement) {
-    this.props.todos
+    const todos = this.props.todos
       .filter(this.filterForState, this)
-      .sort(this.sortByActionDate)
-      .forEach((todo) => {
-        container.createDiv('todo-item-view-item', (el) => {
-          el.createDiv('todo-item-view-item-checkbox', (el) => {
-            el.createEl('input', { type: 'checkbox' }, (el) => {
-              el.checked = todo.status === TodoItemStatus.Done;
+      .sort(this.sortByActionDate);
+
+    const groupedTodos: Record<string, TodoItem[]> = {};
+
+    todos.forEach((todo) => {
+      const lastSlashIndex = todo.sourceFilePath.lastIndexOf('/');
+      const directory = lastSlashIndex !== -1 ? todo.sourceFilePath.substring(0, lastSlashIndex) : '/';
+
+      if (!groupedTodos[directory]) {
+        groupedTodos[directory] = [];
+      }
+      groupedTodos[directory].push(todo);
+    });
+
+    Object.keys(groupedTodos)
+      .sort()
+      .forEach((directory) => {
+        container.createDiv('todo-item-group-header', (el) => {
+          const iconContainer = el.createDiv('todo-item-group-header-icon');
+          iconContainer.appendChild(RenderIcon(Icon.Directory, 'Directory'));
+          el.createSpan({ text: directory, cls: 'todo-item-group-header-title' });
+        });
+
+        groupedTodos[directory].forEach((todo) => {
+          container.createDiv('todo-item-view-item', (el) => {
+            el.createDiv('todo-item-view-item-checkbox', (el) => {
+              el.createEl('input', { type: 'checkbox' }, (el) => {
+                el.checked = todo.status === TodoItemStatus.Done;
+                el.onClickEvent(() => {
+                  this.toggleTodo(todo);
+                });
+              });
+            });
+            el.createDiv('todo-item-view-item-description', (el) => {
+              MarkdownRenderer.renderMarkdown(todo.description, el, todo.sourceFilePath, this);
+              el.createDiv('todo-item-view-item-source-file', (el) => {
+                el.setText(todo.sourceFilePath);
+              });
+              if (todo.actionDate) {
+                el.createSpan('due-date', (el) => {
+                  if (todo.actionDate.startOf('day') < DateTime.now().startOf('day')) {
+                    el.classList.add('overdue');
+                  } else if (todo.actionDate.startOf('day') > DateTime.now().startOf('day')) {
+                    el.classList.add('future-due');
+                  }
+                  el.setText(this.props.formatDate(todo.actionDate));
+                });
+              }
+            });
+            el.createDiv('todo-item-view-item-link', (el) => {
+              el.appendChild(RenderIcon(Icon.Reveal, 'Open file'));
               el.onClickEvent(() => {
-                this.toggleTodo(todo);
+                this.openFile(todo);
               });
-            });
-          });
-          el.createDiv('todo-item-view-item-description', (el) => {
-            MarkdownRenderer.renderMarkdown(todo.description, el, todo.sourceFilePath, this);
-            el.createDiv('todo-item-view-item-source-file', (el) => {
-              el.setText(todo.sourceFilePath);
-            });
-            if (todo.actionDate) {
-              el.createSpan('due-date', (el) => {
-                if (todo.actionDate.startOf('day') < DateTime.now().startOf('day')) {
-                  el.classList.add('overdue');
-                } else if (todo.actionDate.startOf('day') > DateTime.now().startOf('day')) {
-                  el.classList.add('future-due');
-                }
-                el.setText(this.props.formatDate(todo.actionDate));
-              });
-            }
-          });
-          el.createDiv('todo-item-view-item-link', (el) => {
-            el.appendChild(RenderIcon(Icon.Reveal, 'Open file'));
-            el.onClickEvent(() => {
-              this.openFile(todo);
             });
           });
         });

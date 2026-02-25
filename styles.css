@@ -109,3 +109,29 @@ div.todo-item-view-footer {
     padding: 10px;
     border-top: 1px solid #cccccc33;
 }
+
+div.todo-item-group-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 10px;
+    background-color: var(--background-secondary);
+    font-weight: bold;
+    color: #848484;
+}
+
+div.todo-item-group-header-icon {
+    display: flex;
+    align-items: center;
+    margin-right: 8px;
+    color: #848484;
+}
+
+div.todo-item-group-header-icon svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+}
+
+div.todo-item-group-header-title {
+    font-size: 1em;
+}

@@ -5,6 +5,7 @@ export enum Icon {
   Someday,
   Today,
   Summary,
+  Directory,
 }
 
 export const RenderIcon = (icon: Icon, title = '', description = ''): HTMLElement => {
@@ -28,6 +29,8 @@ const svgForIcon = (icon: Icon): ((arg0: string, arg1: string) => string) => {
       return todayIcon;
     case Icon.Summary:
       return summaryIcon;
+    case Icon.Directory:
+      return directoryIcon;
   }
 };
 
@@ -85,5 +88,13 @@ const summaryIcon = (title: string, description: string): string => `
   <description>${description}</description>
   <path d="M0 0h24v24H0z" fill="none"/>
   <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+</svg>
+`;
+
+const directoryIcon = (title: string, description: string): string => `
+<svg t="1772000106923" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="8441" width="24" height="24" aria-label="${title + description}">
+  <title>${title}</title>
+  <description>${description}</description>
+  <path d="M453.315048 146.285714a73.142857 73.142857 0 0 1 71.411809 57.295238l3.535238 15.847619H828.952381a73.142857 73.142857 0 0 1 73.142857 73.142858v512a73.142857 73.142857 0 0 1-73.142857 73.142857H195.047619a73.142857 73.142857 0 0 1-73.142857-73.142857V219.428571a73.142857 73.142857 0 0 1 73.142857-73.142857h258.267429z m0 73.142857H195.047619v585.142858h633.904762V414.47619H496.688762l-43.373714-195.047619zM780.190476 658.285714v73.142857H243.809524v-73.142857h536.380952z m48.761905-365.714285H544.49981l10.849523 48.761904H828.952381v-48.761904z" p-id="8442" fill="currentColor"></path>
 </svg>
 `;
