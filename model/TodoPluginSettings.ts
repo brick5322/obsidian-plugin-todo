@@ -11,6 +11,7 @@ export interface TodoPluginSettings {
     date: string;
     completedTasks: { path: string; content: string }[];
   };
+  excludedDirectories: string;
 }
 
 export const DEFAULT_SETTINGS: TodoPluginSettings = {
@@ -26,4 +27,5 @@ export const DEFAULT_SETTINGS: TodoPluginSettings = {
     date: '',
     completedTasks: [],
   },
+  excludedDirectories: '',
 };

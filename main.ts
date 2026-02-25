@@ -80,9 +80,20 @@ export default class TodoPlugin extends Plugin {
     return dirs.some((dir) => path.startsWith(dir));
   }
 
+  private isPathExcluded(path: string): boolean {
+    const excludedDirs = this.settings.excludedDirectories || '';
+    if (excludedDirs.trim() === '') return false;
+    const dirs = excludedDirs
+      .split(/[,，\n]/)
+      .map((d) => d.trim())
+      .filter((d) => d.length > 0);
+    return dirs.some((dir) => path.startsWith(dir));
+  }
+
   async trackCompletedTask(todo: TodoItem): Promise<void> {
     if (!this.settings.enableDailyReport) return;
     if (!this.isPathWhitelisted(todo.sourceFilePath)) return;
+    if (this.isPathExcluded(todo.sourceFilePath)) return;
 
     const today = DateTime.now().toFormat('yyyy-MM-dd');
 
@@ -271,6 +282,7 @@ export default class TodoPlugin extends Plugin {
     for (const f of files) {
       if (f.stat.mtime < oneWeekAgo) continue;
       if (!this.isPathWhitelisted(f.path)) continue;
+      if (this.isPathExcluded(f.path)) continue;
 
       const content = await this.app.vault.cachedRead(f);
       const tasks = await todoParser.parseTasks(f.path, content);

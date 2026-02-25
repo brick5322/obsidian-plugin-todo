@@ -137,6 +137,18 @@ export class SettingsTab extends PluginSettingTab {
             this.plugin.updateSettings({ ...currentSettings, dailyReportNextHeader });
           }),
       );
+
+    new Setting(containerEl)
+      .setName('Excluded directories')
+      .setDesc('Tasks in these directories will be ignored. One directory per line.')
+      .addTextArea((text) =>
+        text
+          .setPlaceholder('Example:\nFolder1\nFolder2/Subfolder')
+          .setValue(currentSettings.excludedDirectories)
+          .onChange(async (excludedDirectories) => {
+            this.plugin.updateSettings({ ...currentSettings, excludedDirectories });
+          }),
+      );
   }
 
   private dateTagFormatDescription(error?: string): DocumentFragment {

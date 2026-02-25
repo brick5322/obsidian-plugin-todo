@@ -61,6 +61,8 @@ export class TodoIndex {
       oldSettings.dateFormat !== settings.dateFormat || oldSettings.dateTagFormat !== settings.dateTagFormat;
     if (reIndexRequired) {
       this.initialize();
+    } else if (oldSettings.excludedDirectories !== settings.excludedDirectories) {
+      this.invokeListeners();
     }
   }
 
@@ -113,7 +115,21 @@ export class TodoIndex {
   }
 
   private invokeListeners() {
-    const todos = ([] as TodoItem[]).concat(...Array.from(this.todos.values()));
+    const todos = ([] as TodoItem[]).concat(
+      ...Array.from(this.todos.entries())
+        .filter(([path]) => !this.isPathExcluded(path))
+        .map(([_, todos]) => todos),
+    );
     this.listeners.forEach((listener) => listener(todos));
+  }
+
+  private isPathExcluded(path: string): boolean {
+    const excludedDirs = this.settings.excludedDirectories || '';
+    if (excludedDirs.trim() === '') return false;
+    const dirs = excludedDirs
+      .split(/[,，\n]/)
+      .map((d) => d.trim())
+      .filter((d) => d.length > 0);
+    return dirs.some((dir) => path.startsWith(dir));
   }
 }
