@@ -13,6 +13,8 @@ export default {
   OPEN_IN_NEW_LEAF_NAME: 'Open files in a new leaf',
   OPEN_IN_NEW_LEAF_DESC:
     'If enabled, when opening the file containing a TODO that file will open in a new leaf. If disabled, it will replace the file that you currently have open.',
+  EXCLUDED_DIRS_NAME: 'Excluded directories',
+  EXCLUDED_DIRS_DESC: 'Tasks in these directories will be ignored. Separate folders with a comma.',
   DAILY_REPORT_HEADING: 'Daily report',
   ENABLE_DAILY_REPORT_NAME: 'Enable daily report',
   ENABLE_DAILY_REPORT_DESC: 'If enabled, a daily report will be generated when a todo is completed.',

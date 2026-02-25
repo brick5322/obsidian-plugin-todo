@@ -78,6 +78,18 @@ export class SettingsTab extends PluginSettingTab {
         });
       });
 
+    new Setting(containerEl)
+      .setName(t('EXCLUDED_DIRS_NAME'))
+      .setDesc(t('EXCLUDED_DIRS_DESC'))
+      .addTextArea((text) =>
+        text
+          .setPlaceholder('Folder1, Folder2/Subfolder')
+          .setValue(currentSettings.excludedDirectories)
+          .onChange(async (excludedDirectories) => {
+            this.plugin.updateSettings({ ...currentSettings, excludedDirectories });
+          }),
+      );
+
     new Setting(containerEl).setName(t('DAILY_REPORT_HEADING')).setHeading();
 
     new Setting(containerEl)
@@ -135,18 +147,6 @@ export class SettingsTab extends PluginSettingTab {
           .setValue(currentSettings.dailyReportNextHeader)
           .onChange(async (dailyReportNextHeader) => {
             this.plugin.updateSettings({ ...currentSettings, dailyReportNextHeader });
-          }),
-      );
-
-    new Setting(containerEl)
-      .setName('Excluded directories')
-      .setDesc('Tasks in these directories will be ignored. One directory per line.')
-      .addTextArea((text) =>
-        text
-          .setPlaceholder('Example:\nFolder1\nFolder2/Subfolder')
-          .setValue(currentSettings.excludedDirectories)
-          .onChange(async (excludedDirectories) => {
-            this.plugin.updateSettings({ ...currentSettings, excludedDirectories });
           }),
       );
   }

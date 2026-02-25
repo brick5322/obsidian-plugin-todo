@@ -127,7 +127,7 @@ export class TodoIndex {
     const excludedDirs = this.settings.excludedDirectories || '';
     if (excludedDirs.trim() === '') return false;
     const dirs = excludedDirs
-      .split(/[,，\n]/)
+      .split(/[,，]/)
       .map((d) => d.trim())
       .filter((d) => d.length > 0);
     return dirs.some((dir) => path.startsWith(dir));

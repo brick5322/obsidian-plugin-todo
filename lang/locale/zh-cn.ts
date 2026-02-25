@@ -13,6 +13,8 @@ export default {
   OPEN_IN_NEW_LEAF_NAME: '在新标签页中打开文件',
   OPEN_IN_NEW_LEAF_DESC:
     '如果启用，当打开包含 TODO 的文件时，该文件将在新标签页中打开。如果禁用，它将替换当前打开的文件。',
+  EXCLUDED_DIRS_NAME: '排除文件夹',
+  EXCLUDED_DIRS_DESC: '这些文件夹中的任务将被忽略。使用逗号分隔文件夹。',
   DAILY_REPORT_HEADING: '日报设置',
   ENABLE_DAILY_REPORT_NAME: '启用日报',
   ENABLE_DAILY_REPORT_DESC: '如果启用，完成任务时将生成日报。',
