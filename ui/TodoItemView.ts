@@ -113,7 +113,7 @@ export class TodoItemView extends ItemView {
 
   private renderItems(container: HTMLDivElement) {
     const roots = this.props.todos.filter((t) => !t.parent);
-    const visibleRoots = roots.filter((root) => this.isTreeVisible(root));
+    const visibleRoots = roots.filter((root) => this.shouldShowInPane(root));
 
     visibleRoots.sort((a, b) => {
       const dateA = this.getTreeMostUrgentDate(a);
@@ -130,34 +130,30 @@ export class TodoItemView extends ItemView {
     });
   }
 
-  private isTreeVisible(item: TodoItem): boolean {
-    if (this.matchesFilter(item)) return true;
-    return item.children.some((child) => this.isTreeVisible(child));
-  }
+  private shouldShowInPane(root: TodoItem): boolean {
+    const urgentDate = this.getTreeMostUrgentDate(root);
+    const today = DateTime.now();
 
-  private matchesFilter(value: TodoItem): boolean {
     const isToday = (date: DateTime) => {
-      const today = DateTime.now();
-      return date.day == today.day && date.month == today.month && date.year == today.year;
+      return date.hasSame(today, 'day');
     };
 
     const isBeforeToday = (date: DateTime) => {
-      const today = DateTime.now();
-      return date < today;
+      return date < today.startOf('day');
     };
 
-    const isTodayNote = value.actionDate && (isToday(value.actionDate) || isBeforeToday(value.actionDate));
-    const isScheduledNote = !value.isSomedayMaybeNote && value.actionDate && !isTodayNote;
+    const isTodayUrgent = urgentDate && (isToday(urgentDate) || isBeforeToday(urgentDate));
+    const isScheduledUrgent = urgentDate && !isTodayUrgent;
 
     switch (this.state.activePane) {
       case TodoItemViewPane.Inbox:
-        return !value.isSomedayMaybeNote && !isTodayNote && !isScheduledNote;
+        return !urgentDate && !root.isSomedayMaybeNote && root.status !== TodoItemStatus.Done;
       case TodoItemViewPane.Scheduled:
-        return !!isScheduledNote;
+        return !!isScheduledUrgent;
       case TodoItemViewPane.Someday:
-        return value.isSomedayMaybeNote;
+        return !urgentDate && root.isSomedayMaybeNote && root.status !== TodoItemStatus.Done;
       case TodoItemViewPane.Today:
-        return !!isTodayNote;
+        return !!isTodayUrgent;
     }
   }
 
