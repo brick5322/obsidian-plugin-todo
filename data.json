@@ -3,5 +3,18 @@
   "dateTagFormat": "#%date%",
   "openFilesInNewLeaf": true,
   "enableDailyReport": true,
-  "dailyReportPath": "Daily Reports"
+  "dailyReportPath": "Daily Reports",
+  "dailyReportWhitelist": "",
+  "dailyReportTodayHeader": "【今日工作】",
+  "dailyReportNextHeader": "【明日工作】",
+  "dailyReportData": {
+    "date": "2026-03-06",
+    "completedTasks": [
+      {
+        "path": "aaa/未命名.md",
+        "content": "asda"
+      }
+    ]
+  },
+  "excludedDirectories": ""
 }

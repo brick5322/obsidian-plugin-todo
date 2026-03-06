@@ -168,8 +168,14 @@ div.todo-item-block-info {
     margin-right: 10px;
 }
 
+div.todo-item-block-title {
+    font-weight: bold;
+    color: var(--text-accent);
+
+}
+
 div.todo-item-block-path {
-    color: var(--text-muted);
+    color: var(--text-faint);
     font-family: var(--font-monospace);
     font-size: 0.85em;
     overflow: hidden;
