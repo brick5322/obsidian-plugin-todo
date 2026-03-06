@@ -197,6 +197,11 @@ export class TodoItemView extends ItemView {
         text: this.props.formatDate(urgentDate),
         cls: `todo-item-block-date ${this.getDateClass(urgentDate)}`,
       });
+    } else if (root.isSomedayMaybeNote) {
+      infoContainer.createDiv({
+        text: 'Someday',
+        cls: 'todo-item-block-date todo-date-someday',
+      });
     }
 
     const link = header.createDiv('todo-item-block-link');

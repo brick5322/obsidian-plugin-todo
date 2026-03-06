@@ -113,12 +113,13 @@ export class TodoParser {
     const originalDate = this.dateParser.parseDate(description);
     const descriptionWithoutDate = this.dateParser.removeDate(description);
 
-    const somedayPattern = /#(someday)/g;
-    const isSomedayMaybeTask = description.match(somedayPattern) != null;
+    const somedayPattern = /#(someday)/gi;
+    const isSomedayMaybeTask = somedayPattern.test(description);
+    const descriptionClean = descriptionWithoutDate.replace(somedayPattern, '').trim();
 
     return new TodoItem(
       status,
-      descriptionWithoutDate,
+      descriptionClean,
       isSomedayMaybeTask,
       filePath,
       (entry.index ?? 0) + todoItemOffset,
