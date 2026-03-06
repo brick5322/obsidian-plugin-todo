@@ -249,6 +249,7 @@ div.todo-item-checkbox-container {
 div.todo-item-desc-container {
     flex-grow: 1;
     line-height: 1.5;
+    word-break: break-all;
     /* Indentation is handled by inline style padding-left */
 }
 
