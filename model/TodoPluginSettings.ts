@@ -1,3 +1,9 @@
+export interface CompletedTask {
+  path: string;
+  content: string;
+  subtasks?: CompletedTask[];
+}
+
 export interface TodoPluginSettings {
   dateFormat: string;
   dateTagFormat: string;
@@ -9,7 +15,7 @@ export interface TodoPluginSettings {
   dailyReportNextHeader: string;
   dailyReportData: {
     date: string;
-    completedTasks: { path: string; content: string }[];
+    completedTasks: CompletedTask[];
   };
   excludedDirectories: string;
 }

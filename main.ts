@@ -3,7 +3,7 @@ import { VIEW_TYPE_TODO } from './constants';
 import { TodoItemView, TodoItemViewProps } from './ui/TodoItemView';
 import { TodoItem, TodoItemStatus } from './model/TodoItem';
 import { TodoIndex } from './model/TodoIndex';
-import { TodoPluginSettings, DEFAULT_SETTINGS } from './model/TodoPluginSettings';
+import { TodoPluginSettings, DEFAULT_SETTINGS, CompletedTask } from './model/TodoPluginSettings';
 import { SettingsTab } from './ui/SettingsTab';
 import { DateFormatter } from 'util/DateFormatter';
 import { DateTime } from 'luxon';
@@ -90,6 +90,17 @@ export default class TodoPlugin extends Plugin {
     return dirs.some((dir) => path.startsWith(dir));
   }
 
+  private mapToCompletedTask(todo: TodoItem): CompletedTask {
+    const task: CompletedTask = {
+      path: todo.sourceFilePath,
+      content: todo.description,
+    };
+    if (todo.children && todo.children.length > 0) {
+      task.subtasks = todo.children.map((child) => this.mapToCompletedTask(child));
+    }
+    return task;
+  }
+
   async trackCompletedTask(todo: TodoItem): Promise<void> {
     if (!this.settings.enableDailyReport) return;
     if (!this.isPathWhitelisted(todo.sourceFilePath)) return;
@@ -119,14 +130,11 @@ export default class TodoPlugin extends Plugin {
     }
 
     // Add the new task
-    this.settings.dailyReportData.completedTasks.push({
-      path: todo.sourceFilePath,
-      content: todo.description,
-    });
+    this.settings.dailyReportData.completedTasks.push(this.mapToCompletedTask(todo));
     await this.saveData(this.settings);
   }
 
-  async flushDailyReport(date: string, tasks: { path: string; content: string }[]): Promise<void> {
+  async flushDailyReport(date: string, tasks: CompletedTask[]): Promise<void> {
     const reportPath = this.settings.dailyReportPath;
     if (!reportPath) return;
 
@@ -157,11 +165,11 @@ export default class TodoPlugin extends Plugin {
     }
   }
 
-  private formatTasksHierarchically(tasks: ({ path: string; content: string } | string)[]): string {
+  private formatTasksHierarchically(tasks: (CompletedTask | string)[]): string {
     interface TaskNode {
       name: string;
       children: Map<string, TaskNode>;
-      tasks: string[];
+      tasks: CompletedTask[];
     }
 
     const root: TaskNode = { name: 'root', children: new Map(), tasks: [] };
@@ -173,6 +181,7 @@ export default class TodoPlugin extends Plugin {
     tasks.forEach((task) => {
       let displayPath = '';
       let content = '';
+      let subtasks: CompletedTask[] | undefined;
 
       if (typeof task === 'string') {
         // Handle legacy string format
@@ -194,6 +203,7 @@ export default class TodoPlugin extends Plugin {
         } else {
           displayPath = task.path.replace(/\.md$/, '');
           content = task.content;
+          subtasks = task.subtasks;
         }
       }
 
@@ -223,8 +233,18 @@ export default class TodoPlugin extends Plugin {
         currentNode = currentNode.children.get(part)!;
       });
 
-      currentNode.tasks.push(content);
+      currentNode.tasks.push({ path: displayPath, content, subtasks });
     });
+
+    const renderTaskRecursive = (task: CompletedTask, prefix: string): string => {
+      let res = `${prefix}- ${task.content}\n`;
+      if (task.subtasks) {
+        task.subtasks.forEach((sub) => {
+          res += renderTaskRecursive(sub, prefix + '    ');
+        });
+      }
+      return res;
+    };
 
     const renderTree = (node: TaskNode, level: number): string => {
       let output = '';
@@ -240,7 +260,7 @@ export default class TodoPlugin extends Plugin {
 
       // Render tasks in this folder
       node.tasks.forEach((t) => {
-        output += `${indent}- ${t}\n`;
+        output += renderTaskRecursive(t, indent);
       });
 
       return output;
@@ -277,7 +297,7 @@ export default class TodoPlugin extends Plugin {
     const todoParser = new TodoParser(dateParser);
     const files = this.app.vault.getMarkdownFiles();
     const oneWeekAgo = DateTime.now().minus({ days: 7 }).toMillis();
-    const nextTasks: { path: string; content: string }[] = [];
+    const nextTasks: CompletedTask[] = [];
 
     for (const f of files) {
       if (f.stat.mtime < oneWeekAgo) continue;
@@ -289,10 +309,12 @@ export default class TodoPlugin extends Plugin {
 
       tasks.forEach((t) => {
         if (t.status === TodoItemStatus.Todo && !t.isSomedayMaybeNote) {
-          nextTasks.push({
-            path: f.path,
-            content: t.description,
-          });
+          // If parent is also Todo, skip (it will be included with parent)
+          if (t.parent && t.parent.status === TodoItemStatus.Todo && !t.parent.isSomedayMaybeNote) {
+            return;
+          }
+          // Otherwise, this is a root of a pending tree (either no parent, or parent is Done)
+          nextTasks.push(this.mapToCompletedTask(t));
         }
       });
     }

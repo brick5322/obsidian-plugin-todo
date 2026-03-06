@@ -25,7 +25,12 @@ export class TodoItem {
   public status: TodoItemStatus;
   public description: string;
   public actionDate?: DateTime;
+  public originalDate?: DateTime;
   public isSomedayMaybeNote: boolean;
+  
+  public indentation: number;
+  public parent?: TodoItem;
+  public children: TodoItem[] = [];
 
   constructor(
     status: TodoItemStatus,
@@ -35,6 +40,8 @@ export class TodoItem {
     startIndex: number,
     length: number,
     actionDate?: DateTime,
+    indentation: number = 0,
+    originalDate?: DateTime,
   ) {
     this.status = status;
     this.description = description;
@@ -43,5 +50,7 @@ export class TodoItem {
     this.sourceFilePath = sourceFilePath;
     this.startIndex = startIndex;
     this.length = length;
+    this.indentation = indentation;
+    this.originalDate = originalDate;
   }
 }

@@ -22,6 +22,7 @@ div.todo-item-view-items {
     justify-content: flex-start;
     flex-grow: 1;
     overflow-y: auto;
+    padding: 10px 2px; /* Added padding for better spacing */
 }
 
 div.todo-item-view-item {
@@ -110,6 +111,7 @@ div.todo-item-view-footer {
     border-top: 1px solid #cccccc33;
 }
 
+/* Legacy styles - keeping for reference or partial use if needed, though mostly replaced by blocks */
 div.todo-item-group-header {
     display: flex;
     align-items: center;
@@ -134,4 +136,125 @@ div.todo-item-group-header-icon svg {
 
 div.todo-item-group-header-title {
     font-size: 1em;
+}
+
+/* Hierarchical Task Display */
+
+div.todo-item-block {
+    margin-bottom: 15px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background-color: var(--background-primary);
+    overflow: hidden; /* Ensure content stays within rounded corners */
+}
+
+div.todo-item-block-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background-color: var(--background-secondary);
+    border-bottom: 1px solid var(--background-modifier-border);
+    font-size: 0.9em;
+}
+
+div.todo-item-block-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex-grow: 1;
+    overflow: hidden;
+    margin-right: 10px;
+}
+
+div.todo-item-block-path {
+    color: var(--text-muted);
+    font-family: var(--font-monospace);
+    font-size: 0.85em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-bottom: 4px;
+}
+
+div.todo-item-block-date {
+    align-self: flex-start;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.todo-date-overdue {
+    background-color: #ff4d4f;
+    color: white;
+}
+
+.todo-date-today {
+    background-color: #fbb034;
+    color: black;
+}
+
+.todo-date-future {
+    background-color: #52c41a;
+    color: white;
+}
+
+div.todo-item-block-link {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+    transition: color 0.2s ease;
+    width: 20px;
+    height: 20px;
+    justify-content: center;
+}
+
+div.todo-item-block-link:hover {
+    color: var(--text-accent);
+}
+
+div.todo-item-tree {
+    padding: 8px 12px;
+}
+
+div.todo-item-row {
+    display: flex;
+    align-items: flex-start;
+    padding: 4px 0;
+}
+
+div.todo-item-checkbox-container {
+    display: flex;
+    align-items: flex-start; /* Align with top of text */
+    justify-content: center;
+    width: 24px; /* Fixed width for alignment */
+    flex-shrink: 0;
+    padding-top: 3px; /* Adjust vertical alignment to match text */
+}
+
+div.todo-item-desc-container {
+    flex-grow: 1;
+    line-height: 1.5;
+    /* Indentation is handled by inline style padding-left */
+}
+
+div.todo-item-desc-container.todo-text-overdue {
+    color: #ff4d4f;
+}
+
+div.todo-item-desc-container.todo-text-today {
+    color: #fbb034;
+}
+
+div.todo-item-desc-container p {
+    margin: 0;
+}
+
+/* Override checkbox style if needed */
+div.todo-item-checkbox-container input[type="checkbox"] {
+    cursor: pointer;
 }

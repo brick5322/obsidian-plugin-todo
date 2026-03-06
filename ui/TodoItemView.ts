@@ -112,69 +112,30 @@ export class TodoItemView extends ItemView {
   }
 
   private renderItems(container: HTMLDivElement) {
-    const todos = this.props.todos
-      .filter(this.filterForState, this)
-      .sort(this.sortByActionDate);
+    const roots = this.props.todos.filter((t) => !t.parent);
+    const visibleRoots = roots.filter((root) => this.isTreeVisible(root));
 
-    const groupedTodos: Record<string, TodoItem[]> = {};
+    visibleRoots.sort((a, b) => {
+      const dateA = this.getTreeMostUrgentDate(a);
+      const dateB = this.getTreeMostUrgentDate(b);
 
-    todos.forEach((todo) => {
-      const lastSlashIndex = todo.sourceFilePath.lastIndexOf('/');
-      const directory = lastSlashIndex !== -1 ? todo.sourceFilePath.substring(0, lastSlashIndex) : '/';
-
-      if (!groupedTodos[directory]) {
-        groupedTodos[directory] = [];
-      }
-      groupedTodos[directory].push(todo);
+      if (!dateA && !dateB) return 0;
+      if (!dateA) return 1;
+      if (!dateB) return -1;
+      return dateA.valueOf() - dateB.valueOf();
     });
 
-    Object.keys(groupedTodos)
-      .sort()
-      .forEach((directory) => {
-        container.createDiv('todo-item-group-header', (el) => {
-          const iconContainer = el.createDiv('todo-item-group-header-icon');
-          iconContainer.appendChild(RenderIcon(Icon.Directory, 'Directory'));
-          el.createSpan({ text: directory, cls: 'todo-item-group-header-title' });
-        });
-
-        groupedTodos[directory].forEach((todo) => {
-          container.createDiv('todo-item-view-item', (el) => {
-            el.createDiv('todo-item-view-item-checkbox', (el) => {
-              el.createEl('input', { type: 'checkbox' }, (el) => {
-                el.checked = todo.status === TodoItemStatus.Done;
-                el.onClickEvent(() => {
-                  this.toggleTodo(todo);
-                });
-              });
-            });
-            el.createDiv('todo-item-view-item-description', (el) => {
-              MarkdownRenderer.renderMarkdown(todo.description, el, todo.sourceFilePath, this);
-              el.createDiv('todo-item-view-item-source-file', (el) => {
-                el.setText(todo.sourceFilePath);
-              });
-              if (todo.actionDate) {
-                el.createSpan('due-date', (el) => {
-                  if (todo.actionDate.startOf('day') < DateTime.now().startOf('day')) {
-                    el.classList.add('overdue');
-                  } else if (todo.actionDate.startOf('day') > DateTime.now().startOf('day')) {
-                    el.classList.add('future-due');
-                  }
-                  el.setText(this.props.formatDate(todo.actionDate));
-                });
-              }
-            });
-            el.createDiv('todo-item-view-item-link', (el) => {
-              el.appendChild(RenderIcon(Icon.Reveal, 'Open file'));
-              el.onClickEvent(() => {
-                this.openFile(todo);
-              });
-            });
-          });
-        });
-      });
+    visibleRoots.forEach((root) => {
+      this.renderTaskBlock(container, root);
+    });
   }
 
-  private filterForState(value: TodoItem, _index: number, _array: TodoItem[]): boolean {
+  private isTreeVisible(item: TodoItem): boolean {
+    if (this.matchesFilter(item)) return true;
+    return item.children.some((child) => this.isTreeVisible(child));
+  }
+
+  private matchesFilter(value: TodoItem): boolean {
     const isToday = (date: DateTime) => {
       const today = DateTime.now();
       return date.day == today.day && date.month == today.month && date.year == today.year;
@@ -192,32 +153,91 @@ export class TodoItemView extends ItemView {
       case TodoItemViewPane.Inbox:
         return !value.isSomedayMaybeNote && !isTodayNote && !isScheduledNote;
       case TodoItemViewPane.Scheduled:
-        return isScheduledNote;
+        return !!isScheduledNote;
       case TodoItemViewPane.Someday:
         return value.isSomedayMaybeNote;
       case TodoItemViewPane.Today:
-        return isTodayNote;
+        return !!isTodayNote;
     }
   }
 
-  private sortByActionDate(a: TodoItem, b: TodoItem): number {
-    if (!a.actionDate && !b.actionDate) {
-      if (a.isSomedayMaybeNote && !b.isSomedayMaybeNote) {
-        return -1;
-      }
-      if (!a.isSomedayMaybeNote && b.isSomedayMaybeNote) {
-        return 1;
-      }
-      return 0;
+  private getTreeMostUrgentDate(item: TodoItem): DateTime | undefined {
+    let minDate: DateTime | undefined = undefined;
+
+    if (item.status === TodoItemStatus.Todo && item.actionDate) {
+      minDate = item.actionDate;
     }
-    return a.actionDate < b.actionDate ? -1 : a.actionDate > b.actionDate ? 1 : 0;
+
+    for (const child of item.children) {
+      const childDate = this.getTreeMostUrgentDate(child);
+      if (childDate) {
+        if (!minDate || childDate < minDate) {
+          minDate = childDate;
+        }
+      }
+    }
+
+    return minDate;
   }
 
-  private toggleTodo(todo: TodoItem): void {
-    this.props.toggleTodo(todo, TodoItemStatus.toggleStatus(todo.status));
+  private renderTaskBlock(container: HTMLDivElement, root: TodoItem) {
+    const block = container.createDiv('todo-item-block');
+    const header = block.createDiv('todo-item-block-header');
+
+    const infoContainer = header.createDiv('todo-item-block-info');
+    infoContainer.createDiv({ text: root.description, cls: 'todo-item-block-title' });
+
+    const lastSlash = root.sourceFilePath.lastIndexOf('/');
+    const directory = lastSlash !== -1 ? root.sourceFilePath.substring(0, lastSlash) : '/';
+    infoContainer.createDiv({ text: directory, cls: 'todo-item-block-path' });
+
+    const urgentDate = root.actionDate;
+    if (urgentDate) {
+      infoContainer.createDiv({
+        text: this.props.formatDate(urgentDate),
+        cls: `todo-item-block-date ${this.getDateClass(urgentDate)}`,
+      });
+    }
+
+    const link = header.createDiv('todo-item-block-link');
+    link.appendChild(RenderIcon(Icon.Reveal, 'Open file'));
+    link.onClickEvent(() => {
+      this.props.openFile(root.sourceFilePath);
+    });
+
+    const treeContainer = block.createDiv('todo-item-tree');
+    this.renderTaskTree(treeContainer, root, 0);
   }
 
-  private openFile(todo: TodoItem): void {
-    this.props.openFile(todo.sourceFilePath);
+  private getDateClass(date: DateTime): string {
+    const today = DateTime.now().startOf('day');
+    const target = date.startOf('day');
+    if (target < today) return 'todo-date-overdue';
+    if (target > today) return 'todo-date-future';
+    return 'todo-date-today';
+  }
+
+  private renderTaskTree(container: HTMLElement, item: TodoItem, level: number) {
+    const row = container.createDiv('todo-item-row');
+
+    const checkboxContainer = row.createDiv('todo-item-checkbox-container');
+    const checkbox = checkboxContainer.createEl('input', { type: 'checkbox' });
+    checkbox.checked = item.status === TodoItemStatus.Done;
+    checkbox.onClickEvent(() => this.props.toggleTodo(item, TodoItemStatus.toggleStatus(item.status)));
+
+    const descContainer = row.createDiv('todo-item-desc-container');
+    descContainer.style.paddingLeft = `${level * 10}px`;
+
+    if (item.originalDate) {
+      const dateClass = this.getDateClass(item.originalDate);
+      if (dateClass === 'todo-date-overdue') descContainer.classList.add('todo-text-overdue');
+      else if (dateClass === 'todo-date-today') descContainer.classList.add('todo-text-today');
+    }
+
+    MarkdownRenderer.renderMarkdown(item.description, descContainer, item.sourceFilePath, this);
+
+    item.children.forEach((child) => {
+      this.renderTaskTree(container, child, level + 1);
+    });
   }
 }
