@@ -17,7 +17,6 @@ div.todo-item-view-toolbar-item:hover {
 }
 
 div.todo-item-view-items {
-    display: flex;
     flex-direction: column;
     justify-content: flex-start;
     flex-grow: 1;
