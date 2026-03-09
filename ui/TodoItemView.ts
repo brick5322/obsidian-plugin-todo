@@ -181,7 +181,13 @@ export class TodoItemView extends ItemView {
     const header = block.createDiv('todo-item-block-header');
 
     const infoContainer = header.createDiv('todo-item-block-info');
-    infoContainer.createDiv({ text: root.description, cls: 'todo-item-block-title' });
+    const titleEl = infoContainer.createDiv({ cls: 'todo-item-block-title' });
+    titleEl.setText(root.description);
+
+    const temp = document.createElement('div');
+    MarkdownRenderer.renderMarkdown(root.description, temp, root.sourceFilePath, this).then(() => {
+      titleEl.setText(temp.textContent || root.description);
+    });
 
     const lastSlash = root.sourceFilePath.lastIndexOf('/');
     const directory = lastSlash !== -1 ? root.sourceFilePath.substring(0, lastSlash) : '/';
