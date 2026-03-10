@@ -227,8 +227,20 @@ div.todo-item-block-link:hover {
     color: var(--text-accent);
 }
 
+div.todo-item-block-link svg {
+    fill: currentColor;
+    width: 18px;
+    height: 18px;
+}
+
 div.todo-item-tree {
     padding: 8px 12px;
+}
+
+div.todo-item-children {
+    margin-left: 11px;
+    border-left: 1px solid #cccccc7f;
+    padding-left: 11px;
 }
 
 div.todo-item-row {

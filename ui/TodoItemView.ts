@@ -213,7 +213,7 @@ export class TodoItemView extends ItemView {
     });
 
     const treeContainer = block.createDiv('todo-item-tree');
-    this.renderTaskTree(treeContainer, root, 0);
+    this.renderTaskTree(treeContainer, root);
   }
 
   private getDateClass(date: DateTime): string {
@@ -224,7 +224,7 @@ export class TodoItemView extends ItemView {
     return 'todo-date-today';
   }
 
-  private renderTaskTree(container: HTMLElement, item: TodoItem, level: number) {
+  private renderTaskTree(container: HTMLElement, item: TodoItem) {
     const row = container.createDiv('todo-item-row');
 
     const checkboxContainer = row.createDiv('todo-item-checkbox-container');
@@ -233,7 +233,6 @@ export class TodoItemView extends ItemView {
     checkbox.onClickEvent(() => this.props.toggleTodo(item, TodoItemStatus.toggleStatus(item.status)));
 
     const descContainer = row.createDiv('todo-item-desc-container');
-    descContainer.style.paddingLeft = `${level * 10}px`;
 
     if (item.originalDate) {
       const dateClass = this.getDateClass(item.originalDate);
@@ -243,8 +242,11 @@ export class TodoItemView extends ItemView {
 
     MarkdownRenderer.renderMarkdown(item.description, descContainer, item.sourceFilePath, this);
 
-    item.children.forEach((child) => {
-      this.renderTaskTree(container, child, level + 1);
-    });
+    if (item.children.length > 0) {
+      const childrenContainer = container.createDiv('todo-item-children');
+      item.children.forEach((child) => {
+        this.renderTaskTree(childrenContainer, child);
+      });
+    }
   }
 }
