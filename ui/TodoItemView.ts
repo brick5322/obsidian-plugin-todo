@@ -26,6 +26,8 @@ interface TodoItemViewState {
 export class TodoItemView extends ItemView {
   private props: TodoItemViewProps;
   private state: TodoItemViewState;
+  private toolbarEl?: HTMLDivElement;
+  private itemsEl?: HTMLDivElement;
 
   constructor(leaf: WorkspaceLeaf, props: TodoItemViewProps) {
     super(leaf);
@@ -58,7 +60,8 @@ export class TodoItemView extends ItemView {
 
   private setViewState(newState: TodoItemViewState) {
     this.state = newState;
-    this.render();
+    this.updateToolbarActiveClasses();
+    this.renderItemsOnly();
   }
 
   private render(): void {
@@ -66,9 +69,11 @@ export class TodoItemView extends ItemView {
     container.empty();
     container.createDiv('todo-item-view-container', (el) => {
       el.createDiv('todo-item-view-toolbar', (el) => {
+        this.toolbarEl = el;
         this.renderToolBar(el);
       });
       el.createDiv('todo-item-view-items', (el) => {
+        this.itemsEl = el;
         this.renderItems(el);
       });
       el.createDiv('todo-item-view-footer', (el) => {
@@ -77,6 +82,25 @@ export class TodoItemView extends ItemView {
           btn.style.width = '100%';
         });
       });
+    });
+  }
+
+  private renderItemsOnly(): void {
+    if (!this.itemsEl) return;
+    const prevScrollTop = this.itemsEl.scrollTop;
+    this.itemsEl.empty();
+    this.renderItems(this.itemsEl);
+    this.itemsEl.scrollTop = prevScrollTop;
+  }
+
+  private updateToolbarActiveClasses(): void {
+    if (!this.toolbarEl) return;
+    const panes = [TodoItemViewPane.Today, TodoItemViewPane.Scheduled, TodoItemViewPane.Inbox, TodoItemViewPane.Someday];
+    panes.forEach((pane, idx) => {
+      const child = this.toolbarEl!.children[idx] as HTMLDivElement;
+      if (!child) return;
+      const base = 'todo-item-view-toolbar-item';
+      child.className = `${base}${pane === this.state.activePane ? ' active' : ''}`;
     });
   }
 
