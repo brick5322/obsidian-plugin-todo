@@ -55,7 +55,11 @@ export class TodoItemView extends ItemView {
 
   public setProps(setter: (currentProps: TodoItemViewProps) => TodoItemViewProps): void {
     this.props = setter(this.props);
-    this.render();
+    if (this.itemsEl && this.toolbarEl) {
+      this.renderItemsOnly();
+    } else {
+      this.render();
+    }
   }
 
   private setViewState(newState: TodoItemViewState) {
