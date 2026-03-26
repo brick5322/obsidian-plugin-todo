@@ -189,9 +189,7 @@ export class TodoItemView extends ItemView {
       titleEl.setText(temp.textContent || root.description);
     });
 
-    const lastSlash = root.sourceFilePath.lastIndexOf('/');
-    const directory = lastSlash !== -1 ? root.sourceFilePath.substring(0, lastSlash) : '/';
-    infoContainer.createDiv({ text: directory, cls: 'todo-item-block-path' });
+    infoContainer.createDiv({ text: root.sourceFilePath, cls: 'todo-item-block-path' });
 
     const urgentDate = root.actionDate;
     if (urgentDate) {
