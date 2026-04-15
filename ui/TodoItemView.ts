@@ -17,6 +17,10 @@ export interface TodoItemViewProps {
   openFile: (filePath: string) => void;
   toggleTodo: (todo: TodoItem, newStatus: TodoItemStatus) => void;
   onGenerateDailySummary: () => void;
+  enableDailyReport: boolean;
+  lookupChild: (childId: string) => TodoItem | undefined;
+  getRootItems: () => TodoItem[];
+  getActionDate: (item: TodoItem) => DateTime | undefined;
 }
 
 interface TodoItemViewState {
@@ -28,6 +32,7 @@ export class TodoItemView extends ItemView {
   private state: TodoItemViewState;
   private toolbarEl?: HTMLDivElement;
   private itemsEl?: HTMLDivElement;
+  private footerEl?: HTMLDivElement;
 
   constructor(leaf: WorkspaceLeaf, props: TodoItemViewProps) {
     super(leaf);
@@ -54,7 +59,14 @@ export class TodoItemView extends ItemView {
   }
 
   public setProps(setter: (currentProps: TodoItemViewProps) => TodoItemViewProps): void {
+    const oldEnableDailyReport = this.props.enableDailyReport;
     this.props = setter(this.props);
+
+    // If enableDailyReport changed, re-render footer
+    if (oldEnableDailyReport !== this.props.enableDailyReport) {
+      this.renderFooter();
+    }
+
     if (this.itemsEl && this.toolbarEl) {
       this.renderItemsOnly();
     } else {
@@ -80,13 +92,23 @@ export class TodoItemView extends ItemView {
         this.itemsEl = el;
         this.renderItems(el);
       });
+      // Footer placeholder
       el.createDiv('todo-item-view-footer', (el) => {
-        el.createEl('button', { text: t('GENERATE_DAILY_SUMMARY') }, (btn) => {
-          btn.onClickEvent(() => this.props.onGenerateDailySummary());
-          btn.style.width = '100%';
-        });
+        this.footerEl = el;
+        this.renderFooter();
       });
     });
+  }
+
+  private renderFooter(): void {
+    if (!this.footerEl) return;
+    this.footerEl.empty();
+    if (this.props.enableDailyReport) {
+      this.footerEl.createEl('button', { text: t('GENERATE_DAILY_SUMMARY') }, (btn) => {
+        btn.onClickEvent(() => this.props.onGenerateDailySummary());
+        btn.style.width = '100%';
+      });
+    }
   }
 
   private renderItemsOnly(): void {
@@ -140,7 +162,7 @@ export class TodoItemView extends ItemView {
   }
 
   private renderItems(container: HTMLDivElement) {
-    const roots = this.props.todos.filter((t) => !t.parent);
+    const roots = this.props.getRootItems();
     const visibleRoots = roots.filter((root) => this.shouldShowInPane(root));
 
     visibleRoots.sort((a, b) => {
@@ -188,15 +210,19 @@ export class TodoItemView extends ItemView {
   private getTreeMostUrgentDate(item: TodoItem): DateTime | undefined {
     let minDate: DateTime | undefined = undefined;
 
-    if (item.status === TodoItemStatus.Todo && item.actionDate) {
-      minDate = item.actionDate;
+    const actionDate = this.props.getActionDate(item);
+    if (item.status === TodoItemStatus.Todo && actionDate) {
+      minDate = actionDate;
     }
 
-    for (const child of item.children) {
-      const childDate = this.getTreeMostUrgentDate(child);
-      if (childDate) {
-        if (!minDate || childDate < minDate) {
-          minDate = childDate;
+    for (const childId of item.childIds) {
+      const child = this.props.lookupChild(childId);
+      if (child) {
+        const childDate = this.getTreeMostUrgentDate(child);
+        if (childDate) {
+          if (!minDate || childDate < minDate) {
+            minDate = childDate;
+          }
         }
       }
     }
@@ -219,7 +245,8 @@ export class TodoItemView extends ItemView {
 
     infoContainer.createDiv({ text: root.sourceFilePath, cls: 'todo-item-block-path' });
 
-    const urgentDate = root.actionDate;
+    // Use tree's most urgent date (root + all children)
+    const urgentDate = this.getTreeMostUrgentDate(root);
     if (urgentDate) {
       infoContainer.createDiv({
         text: this.props.formatDate(urgentDate),
@@ -255,23 +282,36 @@ export class TodoItemView extends ItemView {
 
     const checkboxContainer = row.createDiv('todo-item-checkbox-container');
     const checkbox = checkboxContainer.createEl('input', { type: 'checkbox' });
-    checkbox.checked = item.status === TodoItemStatus.Done;
-    checkbox.onClickEvent(() => this.props.toggleTodo(item, TodoItemStatus.toggleStatus(item.status)));
+    checkbox.checked = item.status === TodoItemStatus.Done || item.status === TodoItemStatus.CascadedDone;
+    checkbox.onClickEvent(() => {
+      const newStatus = item.status === TodoItemStatus.Todo ? TodoItemStatus.Done : TodoItemStatus.Todo;
+      this.props.toggleTodo(item, newStatus);
+    });
 
     const descContainer = row.createDiv('todo-item-desc-container');
 
-    if (item.originalDate) {
-      const dateClass = this.getDateClass(item.originalDate);
+    const actionDate = this.props.getActionDate(item);
+    if (actionDate) {
+      const dateClass = this.getDateClass(actionDate);
       if (dateClass === 'todo-date-overdue') descContainer.classList.add('todo-text-overdue');
       else if (dateClass === 'todo-date-today') descContainer.classList.add('todo-text-today');
     }
 
+    // Show parse error if present
+    if (item.parseError) {
+      const errorEl = descContainer.createDiv({ cls: 'todo-parse-error' });
+      errorEl.setText('⚠ ' + item.parseError);
+    }
+
     MarkdownRenderer.renderMarkdown(item.description, descContainer, item.sourceFilePath, this);
 
-    if (item.children.length > 0) {
+    if (item.childIds.length > 0) {
       const childrenContainer = container.createDiv('todo-item-children');
-      item.children.forEach((child) => {
-        this.renderTaskTree(childrenContainer, child);
+      item.childIds.forEach((childId) => {
+        const child = this.props.lookupChild(childId);
+        if (child) {
+          this.renderTaskTree(childrenContainer, child);
+        }
       });
     }
   }
