@@ -2,24 +2,34 @@ import { App, Plugin, PluginManifest, TFile, WorkspaceLeaf, Notice } from 'obsid
 import { VIEW_TYPE_TODO } from './constants';
 import { TodoItemView, TodoItemViewProps } from './ui/TodoItemView';
 import { TodoItem, TodoItemStatus } from './model/TodoItem';
-import { TodoIndex } from './model/TodoIndex';
-import { TodoPluginSettings, DEFAULT_SETTINGS, CompletedTask } from './model/TodoPluginSettings';
+import { TodoTree } from './model/TodoTree';
+import { Parser } from './model/Parser';
+import { Indexer } from './model/Indexer';
+import { TodoPluginSettings, DEFAULT_SETTINGS, CompletedTaskRecord } from './model/TodoPluginSettings';
 import { SettingsTab } from './ui/SettingsTab';
 import { DateFormatter } from 'util/DateFormatter';
 import { DateTime } from 'luxon';
-import { TodoParser } from './model/TodoParser';
 import { DateParser } from './util/DateParser';
 import { t } from './lang/helpers';
 
 export default class TodoPlugin extends Plugin {
   private dateFormatter: DateFormatter;
-  private todoIndex: TodoIndex;
+  private todoTree: TodoTree;
+  private indexer: Indexer;
+  private parser: Parser;
   private view: TodoItemView;
   private settings: TodoPluginSettings;
 
   constructor(app: App, manifest: PluginManifest) {
     super(app, manifest);
-    this.todoIndex = new TodoIndex(this.app.vault, DEFAULT_SETTINGS, this.tick.bind(this));
+    this.settings = DEFAULT_SETTINGS;
+    this.todoTree = new TodoTree(this.settings);
+    const dateParser = new DateParser(this.settings.dateTagFormat, this.settings.dateFormat);
+    this.parser = new Parser(dateParser);
+    this.indexer = new Indexer(this.app.vault, this.todoTree, this.parser);
+
+    // Subscribe to TodoTree changes
+    this.todoTree.subscribe(this.tick.bind(this));
   }
 
   async onload(): Promise<void> {
@@ -51,14 +61,44 @@ export default class TodoPlugin extends Plugin {
           }
         },
         toggleTodo: async (todo: TodoItem, newStatus: TodoItemStatus) => {
-          this.todoIndex.setStatus(todo, newStatus);
           if (newStatus === TodoItemStatus.Done) {
-            await this.trackCompletedTask(todo);
+            // Complete task
+            const recordedItems = this.todoTree.completeTask(todo.taskId);
+
+            // Collect all tasks to sync (parent + all children)
+            const tasksToSync: TodoItem[] = [...recordedItems];
+            tasksToSync.push(...this.collectAllChildren(todo.taskId));
+
+            // Sync all tasks to file at once
+            await this.syncTasksToFile(tasksToSync);
+
+            // Track completed tasks for daily report
+            for (const item of recordedItems) {
+              await this.trackCompletedTaskRecord(item);
+            }
+          } else {
+            // Uncomplete task - restore to Todo
+            this.todoTree.uncompleteTask(todo.taskId);
+
+            // Collect all tasks to sync (parent + all children)
+            const tasksToSync: TodoItem[] = [];
+            const updatedItem = this.todoTree.getItem(todo.taskId);
+            if (updatedItem) {
+              tasksToSync.push(updatedItem);
+              tasksToSync.push(...this.collectAllChildren(todo.taskId));
+            }
+
+            // Sync all tasks to file at once
+            await this.syncTasksToFile(tasksToSync);
           }
         },
         onGenerateDailySummary: async () => {
           await this.generateDailySummary();
         },
+        enableDailyReport: this.settings.enableDailyReport,
+        lookupChild: (childId: string) => this.todoTree.getItem(childId),
+        getRootItems: () => this.todoTree.getRootItems(),
+        getActionDate: (item: TodoItem) => this.todoTree.getActionDate(item),
       };
       this.view = new TodoItemView(leaf, props);
       return this.view;
@@ -90,18 +130,111 @@ export default class TodoPlugin extends Plugin {
     return dirs.some((dir) => path.startsWith(dir));
   }
 
-  private mapToCompletedTask(todo: TodoItem): CompletedTask {
-    const task: CompletedTask = {
+  private mapToCompletedTaskRecord(todo: TodoItem): CompletedTaskRecord {
+    const task: CompletedTaskRecord = {
+      taskId: todo.taskId,
       path: todo.sourceFilePath,
       content: todo.description,
+      completedAt: new Date().toISOString(),
+      subtasks: [],
     };
-    if (todo.children && todo.children.length > 0) {
-      task.subtasks = todo.children.map((child) => this.mapToCompletedTask(child));
+    if (todo.childIds && todo.childIds.length > 0) {
+      task.subtasks = todo.childIds
+        .map((childId) => this.todoTree.getItem(childId))
+        .filter((child): child is TodoItem => child !== undefined)
+        .map((child) => this.mapToCompletedTaskRecord(child));
     }
     return task;
   }
 
-  async trackCompletedTask(todo: TodoItem): Promise<void> {
+  /**
+   * Sync a single task status back to source file
+   */
+  private buildNewLine(todo: TodoItem, content: string): string {
+    // Find the line containing the task
+    // startIndex points to the checkbox position (after - or *)
+    const lineStart = content.lastIndexOf('\n', todo.startIndex - 1) + 1;
+    const lineEnd = content.indexOf('\n', todo.startIndex);
+    const actualLineEnd = lineEnd === -1 ? content.length : lineEnd;
+
+    const originalLine = content.substring(lineStart, actualLineEnd);
+
+    // Determine checkbox prefix (e.g., "- " or "* ")
+    const checkboxPrefix = originalLine.match(/^(\s*[-*]\s)/)?.[1] || '';
+    // Done and CascadedDone both show as completed
+    const checkboxStatus = (todo.status === TodoItemStatus.Done || todo.status === TodoItemStatus.CascadedDone) ? 'x' : ' ';
+    return `${checkboxPrefix}[${checkboxStatus}] ${todo.originalDescription}`;
+  }
+
+  /**
+   * Sync tasks to file - reads file once, modifies all tasks, writes once
+   */
+  private async syncTasksToFile(todos: TodoItem[]): Promise<void> {
+    if (todos.length === 0) return;
+
+    // Group todos by file
+    const todosByFile = new Map<string, { file: TFile; content: string; todos: TodoItem[] }>();
+    for (const todo of todos) {
+      const file = this.app.vault.getAbstractFileByPath(todo.sourceFilePath);
+      if (!(file instanceof TFile)) continue;
+
+      if (!todosByFile.has(todo.sourceFilePath)) {
+        const content = await this.app.vault.read(file);
+        todosByFile.set(todo.sourceFilePath, { file, content, todos: [] });
+      }
+      todosByFile.get(todo.sourceFilePath)!.todos.push(todo);
+    }
+
+    // Process each file
+    for (const [, { file, content, todos: fileTodos }] of todosByFile) {
+      let newContent = content;
+
+      // Sort by startIndex descending to modify from end to start
+      fileTodos.sort((a, b) => b.startIndex - a.startIndex);
+
+      for (const todo of fileTodos) {
+        const lineStart = newContent.lastIndexOf('\n', todo.startIndex - 1) + 1;
+        const lineEnd = newContent.indexOf('\n', todo.startIndex);
+        const actualLineEnd = lineEnd === -1 ? newContent.length : lineEnd;
+
+        const originalLine = newContent.substring(lineStart, actualLineEnd);
+        const checkboxPrefix = originalLine.match(/^(\s*[-*]\s)/)?.[1] || '';
+        const checkboxStatus = (todo.status === TodoItemStatus.Done || todo.status === TodoItemStatus.CascadedDone) ? 'x' : ' ';
+        const newLine = `${checkboxPrefix}[${checkboxStatus}] ${todo.originalDescription}`;
+
+        newContent = newContent.substring(0, lineStart) + newLine + newContent.substring(actualLineEnd);
+      }
+
+      // Write to file
+      await this.app.vault.modify(file, newContent);
+
+      // Re-parse the modified file immediately to update the tree
+      // This prevents Indexer's rebuild (which uses stale cache) from overwriting our changes
+      const result = await this.parser.parseFile(file.path, newContent);
+      // Update tree with new items for this file
+      this.todoTree.rebuildForFile(file.path, result.items);
+    }
+  }
+
+  /**
+   * Collect all cascaded children recursively
+   */
+  private collectAllChildren(parentId: string): TodoItem[] {
+    const parent = this.todoTree.getItem(parentId);
+    if (!parent) return [];
+
+    const allChildren: TodoItem[] = [];
+    for (const childId of parent.childIds) {
+      const child = this.todoTree.getItem(childId);
+      if (child) {
+        allChildren.push(child);
+        allChildren.push(...this.collectAllChildren(childId));
+      }
+    }
+    return allChildren;
+  }
+
+  async trackCompletedTaskRecord(todo: TodoItem): Promise<void> {
     if (!this.settings.enableDailyReport) return;
     if (!this.isPathWhitelisted(todo.sourceFilePath)) return;
     if (this.isPathExcluded(todo.sourceFilePath)) return;
@@ -130,11 +263,11 @@ export default class TodoPlugin extends Plugin {
     }
 
     // Add the new task
-    this.settings.dailyReportData.completedTasks.push(this.mapToCompletedTask(todo));
+    this.settings.dailyReportData.completedTasks.push(this.mapToCompletedTaskRecord(todo));
     await this.saveData(this.settings);
   }
 
-  async flushDailyReport(date: string, tasks: CompletedTask[]): Promise<void> {
+  async flushDailyReport(date: string, tasks: CompletedTaskRecord[]): Promise<void> {
     const reportPath = this.settings.dailyReportPath;
     if (!reportPath) return;
 
@@ -165,11 +298,11 @@ export default class TodoPlugin extends Plugin {
     }
   }
 
-  private formatTasksHierarchically(tasks: (CompletedTask | string)[]): string {
+  private formatTasksHierarchically(tasks: (CompletedTaskRecord | string)[]): string {
     interface TaskNode {
       name: string;
       children: Map<string, TaskNode>;
-      tasks: CompletedTask[];
+      tasks: CompletedTaskRecord[];
     }
 
     const root: TaskNode = { name: 'root', children: new Map(), tasks: [] };
@@ -181,7 +314,7 @@ export default class TodoPlugin extends Plugin {
     tasks.forEach((task) => {
       let displayPath = '';
       let content = '';
-      let subtasks: CompletedTask[] | undefined;
+      let subtasks: CompletedTaskRecord[] | undefined;
 
       if (typeof task === 'string') {
         // Handle legacy string format
@@ -233,10 +366,10 @@ export default class TodoPlugin extends Plugin {
         currentNode = currentNode.children.get(part)!;
       });
 
-      currentNode.tasks.push({ path: displayPath, content, subtasks });
+      currentNode.tasks.push({ taskId: '', path: displayPath, content, completedAt: '', subtasks: subtasks || [] });
     });
 
-    const renderTaskRecursive = (task: CompletedTask, prefix: string): string => {
+    const renderTaskRecursive = (task: CompletedTaskRecord, prefix: string): string => {
       let res = `${prefix}- ${task.content}\n`;
       if (task.subtasks) {
         task.subtasks.forEach((sub) => {
@@ -292,31 +425,37 @@ export default class TodoPlugin extends Plugin {
     // Use data from settings for completed tasks
     const completedTasks = this.settings.dailyReportData?.completedTasks || [];
 
-    // Scan for next tasks
-    const dateParser = new DateParser(this.settings.dateTagFormat, this.settings.dateFormat);
-    const todoParser = new TodoParser(dateParser);
-    const files = this.app.vault.getMarkdownFiles();
-    const oneWeekAgo = DateTime.now().minus({ days: 7 }).toMillis();
-    const nextTasks: CompletedTask[] = [];
+    // Scan for next tasks using the in-memory TodoTree
+    const nextTasks: CompletedTaskRecord[] = [];
+    const now = DateTime.now();
+    const oneWeekLater = now.plus({ days: 7 });
 
-    for (const f of files) {
-      if (f.stat.mtime < oneWeekAgo) continue;
-      if (!this.isPathWhitelisted(f.path)) continue;
-      if (this.isPathExcluded(f.path)) continue;
+    // Get all items from the tree
+    const allItems = this.todoTree.getAllItems();
 
-      const content = await this.app.vault.cachedRead(f);
-      const tasks = await todoParser.parseTasks(f.path, content);
+    for (const item of allItems) {
+      // Only Todo status (not Done, not CascadedDone), and not someday/maybe
+      if (item.status !== TodoItemStatus.Todo || item.isSomedayMaybeNote) {
+        continue;
+      }
 
-      tasks.forEach((t) => {
-        if (t.status === TodoItemStatus.Todo && !t.isSomedayMaybeNote) {
-          // If parent is also Todo, skip (it will be included with parent)
-          if (t.parent && t.parent.status === TodoItemStatus.Todo && !t.parent.isSomedayMaybeNote) {
-            return;
-          }
-          // Otherwise, this is a root of a pending tree (either no parent, or parent is Done)
-          nextTasks.push(this.mapToCompletedTask(t));
+      // Skip if not whitelisted or excluded
+      if (!this.isPathWhitelisted(item.sourceFilePath)) continue;
+      if (this.isPathExcluded(item.sourceFilePath)) continue;
+
+      // If parent is also Todo, skip (it will be included with parent)
+      if (item.parentId) {
+        const parent = this.todoTree.getItem(item.parentId);
+        if (parent && parent.status === TodoItemStatus.Todo && !parent.isSomedayMaybeNote) {
+          continue;
         }
-      });
+      }
+
+      // Check if this task is scheduled within the next week
+      const actionDate = this.todoTree.getActionDate(item);
+      if (actionDate && actionDate <= oneWeekLater && actionDate > now) {
+        nextTasks.push(this.mapToCompletedTaskRecord(item));
+      }
     }
 
     let summaryContent = '';
@@ -358,6 +497,7 @@ export default class TodoPlugin extends Plugin {
   }
 
   onunload(): void {
+    this.indexer.unregister();
     this.app.workspace.getLeavesOfType(VIEW_TYPE_TODO).forEach((leaf) => leaf.detach());
   }
 
@@ -378,11 +518,32 @@ export default class TodoPlugin extends Plugin {
     this.settings = settings;
     this.dateFormatter = new DateFormatter(this.settings.dateFormat);
     await this.saveData(this.settings);
-    this.todoIndex.setSettings(settings);
+    this.todoTree.setSettings(settings);
+
+    // Update view props if view exists
+    if (this.view) {
+      this.view.setProps((currentProps) => ({
+        ...currentProps,
+        enableDailyReport: this.settings.enableDailyReport,
+      }));
+    }
   }
 
   private async triggerIndex(): Promise<void> {
-    await this.todoIndex.initialize();
+    // Scan all markdown files and build the tree
+    const files = this.app.vault.getMarkdownFiles();
+    const allItems: TodoItem[] = [];
+
+    for (const f of files) {
+      if (this.isPathExcluded(f.path)) continue;
+
+      const content = await this.app.vault.cachedRead(f);
+      const result = await this.parser.parseFile(f.path, content);
+      allItems.push(...result.items);
+    }
+
+    this.todoTree.rebuild(allItems);
+    this.indexer.register();
   }
 
   tick(todos: TodoItem[]): void {
