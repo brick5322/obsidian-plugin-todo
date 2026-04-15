@@ -86,38 +86,93 @@ export class TodoTree {
   }
 
   /**
+   * Rebuild items for a specific file only
+   * Removes old items for this file and adds new ones
+   * Preserves items from other files
+   */
+  rebuildForFile(filePath: string, items: TodoItem[]): void {
+    // Remove old items for this file from indices
+    const oldItems = this.pathIndex.get(filePath) || [];
+    for (const item of oldItems) {
+      this.hashIndex.delete(item.taskId);
+      // If it was a root, remove from rootIds
+      this.rootIds.delete(item.taskId);
+    }
+    this.pathIndex.delete(filePath);
+
+    // Add new items
+    // Sort by startIndex
+    items.sort((a, b) => a.startIndex - b.startIndex);
+
+    // Build tree for this file
+    this.buildTreeForFile(items);
+
+    // Re-add to pathIndex
+    this.pathIndex.set(filePath, items);
+
+    this.invokeListeners();
+  }
+
+  /**
    * Build tree for a single file using stack algorithm
+   *
+   * Indentation rules:
+   * - Store raw indent (actual space count)
+   * - Calculate level: same indent = same level, larger indent = deeper level
+   * - Track all seen indents and their levels
+   * - Valid nesting: child indent > parent indent
+   * - Level skip error: indent not seen before AND not greater than max seen = error (treat as root)
    */
   private buildTreeForFile(items: TodoItem[]): void {
-    const stack: { item: TodoItem; indentLength: number }[] = [];
+    const stack: { item: TodoItem; indent: number }[] = [];
+    // Track indent -> level mapping for all seen indents
+    const indentToLevel: Map<number, number> = new Map();
+    let maxIndent = -1;
 
     for (const item of items) {
-      // Calculate indent length from indentation level
-      // Assuming indentation is 0 for root, 1 for first level, etc.
-      // Each level is 2 spaces (standard markdown list indent)
-      const indentLength = item.indentation * 2;
+      const indent = item.indentation;
 
-      // Pop from stack until we find a parent with strictly less indentation
-      while (
-        stack.length > 0 &&
-        stack[stack.length - 1].indentLength >= indentLength
-      ) {
-        stack.pop();
+      // Determine level for this indent
+      let level: number;
+      if (indentToLevel.has(indent)) {
+        // Seen before = same level
+        level = indentToLevel.get(indent)!;
+      } else if (indent > maxIndent) {
+        // New indent larger than all seen = next level
+        level = maxIndent === -1 ? 0 : indentToLevel.get(maxIndent)! + 1;
+        indentToLevel.set(indent, level);
+        maxIndent = indent;
+      } else {
+        // Error: indent not seen AND not greater than max
+        // This is "层级跨越" - skip level error
+        // Treat as root and mark parse error
+        level = -1;
+        item.parseError = '层级跨越：缩进级别跳跃';
       }
 
-      const parent = stack.length > 0 ? stack[stack.length - 1].item : undefined;
+      // Find parent in stack
+      if (level >= 0) {
+        // Search stack for parent with smaller indent
+        while (stack.length > 0) {
+          const topIndent = stack[stack.length - 1].indent;
+          if (topIndent < indent) {
+            // Found valid parent
+            const parent = stack[stack.length - 1].item;
+            item.parentId = parent.taskId;
+            parent.childIds.push(item.taskId);
+            break;
+          }
+          stack.pop();
+        }
+      }
 
-      if (parent) {
-        // Set parent/child relationship
-        item.parentId = parent.taskId;
-        parent.childIds.push(item.taskId);
-      } else {
-        // This is a root item
+      if (!item.parentId) {
+        // No valid parent = root item
         this.rootIds.add(item.taskId);
       }
 
-      // Push to stack as potential parent
-      stack.push({ item, indentLength });
+      // Push to stack
+      stack.push({ item, indent });
 
       // Add to indices
       this.hashIndex.set(item.taskId, item);
@@ -197,6 +252,67 @@ export class TodoTree {
         child.status = TodoItemStatus.CascadedDone;
         this.cascadeToChildren(child, recordedItems);
       }
+    }
+  }
+
+  /**
+   * Uncomplete a task - restore to Todo status
+   * Cascades to children (CascadedDone → Todo)
+   * May cascade up to parent if parent was Done
+   */
+  uncompleteTask(taskId: string): void {
+    const item = this.hashIndex.get(taskId);
+    if (!item) return;
+
+    // If item was CascadedDone, it was a child - just restore to Todo
+    if (item.status === TodoItemStatus.CascadedDone) {
+      item.status = TodoItemStatus.Todo;
+    } else if (item.status === TodoItemStatus.Done) {
+      // Item was directly completed - restore to Todo
+      item.status = TodoItemStatus.Todo;
+
+      // Cascade up to parent (parent may need to become Todo if all children are unchecked)
+      this.uncascadeToParent(item);
+    }
+
+    // Cascade down to children that were CascadedDone
+    this.uncascadeChildren(item);
+
+    this.invokeListeners();
+  }
+
+  /**
+   * Restore children from CascadedDone to Todo
+   */
+  private uncascadeChildren(item: TodoItem): void {
+    for (const childId of item.childIds) {
+      const child = this.hashIndex.get(childId);
+      if (child && child.status === TodoItemStatus.CascadedDone) {
+        child.status = TodoItemStatus.Todo;
+        this.uncascadeChildren(child);
+      }
+    }
+  }
+
+  /**
+   * Check if parent should be restored to Todo (if all children are unchecked)
+   */
+  private uncascadeToParent(item: TodoItem): void {
+    if (!item.parentId) return;
+
+    const parent = this.hashIndex.get(item.parentId);
+    if (!parent) return;
+
+    // Check if all children are now Todo or have no pending children
+    const allChildrenUncompleted = parent.childIds.every((childId) => {
+      const child = this.hashIndex.get(childId);
+      return !child || child.status === TodoItemStatus.Todo;
+    });
+
+    if (allChildrenUncompleted && parent.status === TodoItemStatus.Done) {
+      parent.status = TodoItemStatus.Todo;
+      // Continue cascading up
+      this.uncascadeToParent(parent);
     }
   }
 
