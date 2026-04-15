@@ -1,7 +1,9 @@
-export interface CompletedTask {
-  path: string;
-  content: string;
-  subtasks?: CompletedTask[];
+export interface CompletedTaskRecord {
+  taskId: string;           // content hash for deduplication
+  path: string;             // source file path
+  content: string;          // task description
+  completedAt: string;      // ISO timestamp
+  subtasks: CompletedTaskRecord[];
 }
 
 export interface TodoPluginSettings {
@@ -15,7 +17,7 @@ export interface TodoPluginSettings {
   dailyReportNextHeader: string;
   dailyReportData: {
     date: string;
-    completedTasks: CompletedTask[];
+    completedTasks: CompletedTaskRecord[];
   };
   excludedDirectories: string;
 }
