@@ -1,5 +1,4 @@
 import { TodoItem, TodoItemStatus } from './TodoItem';
-import { DateTime } from 'luxon';
 
 describe('TodoItem', () => {
   test('should create with required fields', () => {
