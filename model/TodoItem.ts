@@ -1,56 +1,46 @@
 import { DateTime } from 'luxon';
 
 export enum TodoItemStatus {
-  Todo,
-  Done,
+  Todo = 0,
+  Done = 1,
+  CascadedDone = 2,  // 级联完成，不记录日报
 }
 
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace TodoItemStatus {
-  export function toggleStatus(status: TodoItemStatus): TodoItemStatus {
-    switch (status) {
-      case TodoItemStatus.Todo:
-        return TodoItemStatus.Done;
-      case TodoItemStatus.Done:
-        return TodoItemStatus.Todo;
-    }
-  }
+export interface TodoItemProps {
+  taskId: string;
+  sourceFilePath: string;
+  startIndex: number;
+  length: number;
+  status: TodoItemStatus;
+  description: string;       // 显示用，已清除日期和 #someday 标签
+  originalDescription: string; // 回写文件用，保留原始完整文本
+  isSomedayMaybeNote: boolean;
+  parentId?: string;
+  childIds?: string[];
 }
 
 export class TodoItem {
+  public readonly taskId: string;
   public sourceFilePath: string;
   public startIndex: number;
   public length: number;
-
   public status: TodoItemStatus;
   public description: string;
-  public actionDate?: DateTime;
-  public originalDate?: DateTime;
+  public originalDescription: string;
   public isSomedayMaybeNote: boolean;
-  
-  public indentation: number;
-  public parent?: TodoItem;
-  public children: TodoItem[] = [];
+  public parentId?: string;
+  public childIds: string[];
 
-  constructor(
-    status: TodoItemStatus,
-    description: string,
-    isSomedayMaybeNote: boolean,
-    sourceFilePath: string,
-    startIndex: number,
-    length: number,
-    actionDate?: DateTime,
-    indentation: number = 0,
-    originalDate?: DateTime,
-  ) {
-    this.status = status;
-    this.description = description;
-    this.actionDate = actionDate;
-    this.isSomedayMaybeNote = isSomedayMaybeNote;
-    this.sourceFilePath = sourceFilePath;
-    this.startIndex = startIndex;
-    this.length = length;
-    this.indentation = indentation;
-    this.originalDate = originalDate;
+  constructor(props: TodoItemProps) {
+    this.taskId = props.taskId;
+    this.sourceFilePath = props.sourceFilePath;
+    this.startIndex = props.startIndex;
+    this.length = props.length;
+    this.status = props.status;
+    this.description = props.description;
+    this.originalDescription = props.originalDescription;
+    this.isSomedayMaybeNote = props.isSomedayMaybeNote;
+    this.parentId = props.parentId;
+    this.childIds = props.childIds ?? [];
   }
 }
