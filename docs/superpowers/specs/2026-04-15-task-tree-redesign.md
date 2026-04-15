@@ -114,6 +114,9 @@ class TodoTree {
   private hashIndex: Map<string, TodoItem>;    // taskId → TodoItem
   private pathIndex: Map<string, TodoItem[]>;   // filePath → TodoItem[]
 
+  // Daily Note 文件日期
+  private fileDates: Map<string, DateTime>;      // filePath → DateTime (for Daily Notes)
+
   // 树结构（基于 hash 引用，而非内存引用）
   private rootIds: Set<string>;                  // 顶层任务 IDs
 
@@ -136,6 +139,7 @@ class TodoTree {
   getTaskById(taskId: string): TodoItem | undefined
   getTasksByPath(filePath: string): TodoItem[]
   getRoots(): TodoItem[]
+  getActionDate(taskId: string): DateTime | undefined  // 实时计算
 
   // 任务操作
   completeTask(taskId: string): void  // 含 cascade + 日报记录
@@ -148,11 +152,31 @@ class TodoTree {
 }
 ```
 
-**日期继承逻辑**（在 TodoTree 中统一处理）：
+**日期计算**（实时）：
 ```typescript
-// 构建完树后，统一计算 actionDate
-private calculateActionDates(): void {
-  // 后续遍历，自底向上计算 min(actionDate)
+getActionDate(taskId: string): DateTime | undefined {
+  const task = this.hashIndex.get(taskId);
+  if (!task) return undefined;
+
+  // 自有日期
+  const selfDate = this.dateParser.parseDate(task.originalDescription);
+
+  if (selfDate) {
+    // 有自有日期：取 min(selfDate, parentDate)
+    const parentDate = task.parentId ? this.getActionDate(task.parentId) : undefined;
+    if (parentDate) {
+      return selfDate < parentDate ? selfDate : parentDate;
+    }
+    return selfDate;
+  }
+
+  // 无自有日期：继承 parent
+  if (task.parentId) {
+    return this.getActionDate(task.parentId);
+  }
+
+  // 无 parent：使用文件日期（Daily Note）
+  return this.fileDates.get(task.sourceFilePath);
 }
 ```
 
@@ -243,8 +267,11 @@ interface TodoItem {
   description: string;       // 显示用，已清除日期和 #someday 标签
   originalDescription: string; // 回写文件用，保留原始完整文本（含日期标签）
 
-  // 日期（从 originalDescription 解析得出）
-  actionDate?: DateTime;     // 实际生效日期（继承后）
+  // 日期（实时计算，不存储）
+  // actionDate 由 getActionDate(taskId) 按需计算：
+  //   - 自有日期：从 originalDescription 解析
+  //   - 无自有日期：继承 parent 的 actionDate
+  //   - 无 parent 且无自有日期：使用文件日期（Daily Note）
 
   // Someday 标记
   isSomedayMaybeNote: boolean;
@@ -346,5 +373,6 @@ setStatus(todo: TodoItem, newStatus: TodoItemStatus): void {
 ## 十一、待确认问题
 
 - [x] 简化日期存储 — 不存 `originalDate`，从 `originalDescription` 按需解析
+- [x] actionDate 实时计算 — 不存储，通过 `getActionDate()` 按需计算
 - [ ] Hash 算法选择（SHA256 实现）
 - [ ] 任务描述中包含特殊字符时的处理
