@@ -183,7 +183,6 @@ interface CompletedTaskRecord {
   path: string;            // 文件路径
   content: string;         // 任务描述
   completedAt: string;     // ISO 时间戳
-  isCascaded: boolean;     // 是否级联完成（不展示）
   subtasks: CompletedTaskRecord[];
 }
 ```
@@ -218,8 +217,7 @@ private cascadeDown(taskId: string): void {
   for (const childId of task.childIds) {
     const child = this.hashIndex.get(childId);
     if (child && child.status === TodoItemStatus.Todo) {
-      child.status = TodoItemStatus.Done;
-      child.isCascaded = true;  // 级联完成的标记
+      child.status = TodoItemStatus.CascadedDone;  // 级联完成状态
       this.cascadeDown(childId);
     }
   }
@@ -241,27 +239,33 @@ interface TodoItem {
   length: number;
 
   // 任务内容
-  status: TodoItemStatus;
-  description: string;       // 原始描述（不清除日期）
-  originalDescription: string; // 用于回写（保留日期等标签）
-  isSomedayMaybeNote: boolean;
+  status: TodoItemStatus;   // Todo | Done | CascadedDone
+  description: string;       // 显示用，已清除日期和 #someday 标签
+  originalDescription: string; // 回写文件用，保留原始完整文本（含日期标签）
 
-  // 日期
-  actionDate?: DateTime;     // 实际生效日期
-  originalDate?: DateTime;   // 用户写的日期
+  // 日期（从 originalDescription 解析得出）
+  actionDate?: DateTime;     // 实际生效日期（继承后）
+
+  // Someday 标记
+  isSomedayMaybeNote: boolean;
 
   // 树结构（基于 ID 引用）
   parentId?: string;
   childIds: string[];
+}
 
-  // 级联标记
-  isCascaded: boolean;       // 是否通过 cascade 完成（不记录日报）
+enum TodoItemStatus {
+  Todo,
+  Done,           // 手动完成
+  CascadedDone,   // 级联完成（cascade down），不记录日报
 }
 ```
 
 **注意**：
 - 用 `parentId` 和 `childIds` 替代内存引用
 - `originalDescription` 保留原始文本，用于 `setStatus` 写入文件
+- 不再存储 `originalDate`，日期从 `originalDescription` 按需解析
+- `TodoItemStatus.CascadedDone` 用于级联完成的子任务，清除时只需改状态值
 
 ---
 
@@ -285,8 +289,8 @@ interface CompletedTaskRecord {
 
 **去重展示逻辑**：
 ```typescript
-// 生成日报时过滤
-const displayTasks = completedTasks.filter(t => !t.isCascaded);
+// CascadedDone 状态的任务不记录日报
+// completeTask 只在 status === Todo 时记录
 ```
 
 ---
@@ -341,6 +345,6 @@ setStatus(todo: TodoItem, newStatus: TodoItemStatus): void {
 
 ## 十一、待确认问题
 
+- [x] 简化日期存储 — 不存 `originalDate`，从 `originalDescription` 按需解析
 - [ ] Hash 算法选择（SHA256 实现）
 - [ ] 任务描述中包含特殊字符时的处理
-- [ ] Daily Note 解析逻辑是否保留
