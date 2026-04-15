@@ -208,6 +208,7 @@ interface CompletedTaskRecord {
   content: string;         // 任务描述
   completedAt: string;     // ISO 时间戳
   subtasks: CompletedTaskRecord[];
+  // isCascaded 不需要：只有直接完成的任务才会被记录
 }
 ```
 
@@ -333,7 +334,9 @@ setStatus(todo: TodoItem, newStatus: TodoItemStatus): void {
   const fileContents = await this.vault.read(file);
 
   // 使用 originalDescription（保留日期标签）
-  const newTodo = `[${newStatus === TodoItemStatus.Done ? 'x' : ' '}] ${todo.originalDescription}`;
+  // Done 和 CascadedDone 都写作 [x]
+  const isDone = newStatus === TodoItemStatus.Done || newStatus === TodoItemStatus.CascadedDone;
+  const newTodo = `[${isDone ? 'x' : ' '}] ${todo.originalDescription}`;
 
   const newContents = c.substring(0, todo.startIndex) + newTodo + c.substring(todo.startIndex + todo.length);
   await this.vault.modify(file, newContents);
