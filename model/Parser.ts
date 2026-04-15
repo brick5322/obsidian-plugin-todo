@@ -1,7 +1,5 @@
 import { TodoItem, TodoItemStatus } from './TodoItem';
 import { DateParser } from '../util/DateParser';
-import { extractDueDateFromDailyNotesFile } from '../util/DailyNoteParser';
-import { DateTime } from 'luxon';
 import * as crypto from 'crypto';
 
 export interface ParseResult {
@@ -35,7 +33,6 @@ export class Parser {
     const originalDescription = entry[3].trim();
 
     // Parse date and someday from originalDescription
-    const parsedDate = this.dateParser.parseDate(originalDescription);
     const descriptionWithoutDate = this.dateParser.removeDate(originalDescription);
 
     const somedayPattern = /#(someday)/gi;
