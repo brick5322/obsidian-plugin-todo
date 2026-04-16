@@ -26,7 +26,7 @@ export default class TodoPlugin extends Plugin {
     this.todoTree = new TodoTree(this.settings);
     const dateParser = new DateParser(this.settings.dateTagFormat, this.settings.dateFormat);
     this.parser = new Parser(dateParser);
-    this.indexer = new Indexer(this.app.vault, this.todoTree, this.parser);
+    this.indexer = new Indexer(this.app.vault, this.todoTree, this.parser, (path) => this.isPathExcluded(path));
 
     // Subscribe to TodoTree changes
     this.todoTree.subscribe(this.tick.bind(this));
@@ -519,6 +519,7 @@ export default class TodoPlugin extends Plugin {
     this.dateFormatter = new DateFormatter(this.settings.dateFormat);
     await this.saveData(this.settings);
     this.todoTree.setSettings(settings);
+    this.indexer.setExclusionFilter((path) => this.isPathExcluded(path));
 
     // Update view props if view exists
     if (this.view) {

@@ -15,12 +15,21 @@ export class Indexer {
   private vault: Vault;
   private todoTree: TodoTree;
   private parser: Parser;
+  private isPathExcluded: (path: string) => boolean;
   private registered: boolean = false;
 
-  constructor(vault: Vault, todoTree: TodoTree, parser: Parser) {
+  constructor(vault: Vault, todoTree: TodoTree, parser: Parser, isPathExcluded: (path: string) => boolean) {
     this.vault = vault;
     this.todoTree = todoTree;
     this.parser = parser;
+    this.isPathExcluded = isPathExcluded;
+  }
+
+  /**
+   * Update the exclusion filter
+   */
+  setExclusionFilter(isPathExcluded: (path: string) => boolean): void {
+    this.isPathExcluded = isPathExcluded;
   }
 
   /**
@@ -75,6 +84,8 @@ export class Indexer {
     const allItems: import('./TodoItem').TodoItem[] = [];
 
     for (const f of files) {
+      if (this.isPathExcluded(f.path)) continue;
+
       const content = await this.vault.cachedRead(f);
       const result = await this.parser.parseFile(f.path, content);
       allItems.push(...result.items);
