@@ -127,7 +127,7 @@ export class TodoTree {
     const stack: { item: TodoItem; indent: number }[] = [];
     // Track indent -> level mapping for all seen indents
     const indentToLevel: Map<number, number> = new Map();
-    let maxIndent = -1;
+    let maxLevel = -1;
 
     for (const item of items) {
       const indent = item.indentation;
@@ -137,17 +137,34 @@ export class TodoTree {
       if (indentToLevel.has(indent)) {
         // Seen before = same level
         level = indentToLevel.get(indent)!;
-      } else if (indent > maxIndent) {
-        // New indent larger than all seen = next level
-        level = maxIndent === -1 ? 0 : indentToLevel.get(maxIndent)! + 1;
-        indentToLevel.set(indent, level);
-        maxIndent = indent;
       } else {
-        // Error: indent not seen AND not greater than max
-        // This is "层级跨越" - skip level error
-        // Treat as root and mark parse error
-        level = -1;
-        item.parseError = '层级跨越：缩进级别跳跃';
+        // New indent - determine its level
+        // If indent is smaller than some seen indent, we need to "make room" for it
+        // by reassigning levels. The smallest indent should be level 0 (root).
+        const sortedIndents = Array.from(indentToLevel.keys()).sort((a, b) => a - b);
+
+        // Find where this new indent fits in the sorted order
+        let insertPosition = sortedIndents.findIndex(i => i > indent);
+        if (insertPosition === -1) {
+          // New indent is larger than all seen - append at the end
+          insertPosition = sortedIndents.length;
+        }
+
+        // If there are existing indents after this position, they need to shift up
+        const newLevel = insertPosition;
+
+        // Shift existing levels if needed
+        for (let i = insertPosition; i < sortedIndents.length; i++) {
+          const oldIndent = sortedIndents[i];
+          const oldLevel = indentToLevel.get(oldIndent)!;
+          indentToLevel.set(oldIndent, oldLevel + 1);
+        }
+
+        level = newLevel;
+        indentToLevel.set(indent, level);
+        if (level > maxLevel) {
+          maxLevel = level;
+        }
       }
 
       // Find parent in stack

@@ -86,7 +86,8 @@ export class Indexer {
     for (const f of files) {
       if (this.isPathExcluded(f.path)) continue;
 
-      const content = await this.vault.cachedRead(f);
+      // Use read() instead of cachedRead() to ensure fresh content
+      const content = await this.vault.read(f);
       const result = await this.parser.parseFile(f.path, content);
       allItems.push(...result.items);
     }

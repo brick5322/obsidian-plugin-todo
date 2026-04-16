@@ -538,7 +538,8 @@ export default class TodoPlugin extends Plugin {
     for (const f of files) {
       if (this.isPathExcluded(f.path)) continue;
 
-      const content = await this.app.vault.cachedRead(f);
+      // Use read() instead of cachedRead() to ensure fresh content
+      const content = await this.app.vault.read(f);
       const result = await this.parser.parseFile(f.path, content);
       allItems.push(...result.items);
     }
