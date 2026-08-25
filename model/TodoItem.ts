@@ -16,7 +16,6 @@ export interface TodoItemProps {
   indentation?: number;      // 用于树构建，Parser 会提供
   parentId?: string;
   childIds?: string[];
-  parseError?: string;       // 解析错误信息，如"层级跨越"
 }
 
 export class TodoItem {
@@ -31,7 +30,6 @@ export class TodoItem {
   public indentation: number;
   public parentId?: string;
   public childIds: string[];
-  public parseError?: string;  // 解析错误信息
 
   constructor(props: TodoItemProps) {
     this.taskId = props.taskId;
@@ -45,6 +43,5 @@ export class TodoItem {
     this.indentation = props.indentation ?? 0;
     this.parentId = props.parentId;
     this.childIds = props.childIds ?? [];
-    this.parseError = props.parseError;
   }
 }
