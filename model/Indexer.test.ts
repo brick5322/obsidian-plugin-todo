@@ -25,11 +25,10 @@ function makeFile(path: string): TFile {
 function setup() {
   const included = makeFile('included.md');
   const frontmatterExcluded = makeFile('frontmatter-excluded.md');
-  const settingsExcluded = makeFile('settings-excluded.md');
   let metadataChanged: ((file: TFile) => Promise<void>) | undefined;
 
   const vault = {
-    getMarkdownFiles: jest.fn(() => [included, frontmatterExcluded, settingsExcluded]),
+    getMarkdownFiles: jest.fn(() => [included, frontmatterExcluded]),
     read: jest.fn(async (file: TFile) => `- [ ] ${file.path}`),
     on: jest.fn(() => ({} as EventRef)),
     offref: jest.fn(),
@@ -48,14 +47,7 @@ function setup() {
   const filter = {
     shouldInclude: jest.fn((file: TFile) => file !== frontmatterExcluded),
   } as unknown as TaskFileFilter;
-  const indexer = new Indexer(
-    vault,
-    metadataCache,
-    todoTree,
-    parser,
-    (path: string) => path === settingsExcluded.path,
-    filter,
-  );
+  const indexer = new Indexer(vault, metadataCache, todoTree, parser, filter);
 
   return {
     indexer,
@@ -69,7 +61,7 @@ function setup() {
 }
 
 describe('Indexer', () => {
-  test('applies settings exclusion before frontmatter filtering and parsing', async () => {
+  test('applies frontmatter filtering before parsing', async () => {
     const { indexer, vault, parser, filter, todoTree } = setup();
 
     await indexer.rebuild();

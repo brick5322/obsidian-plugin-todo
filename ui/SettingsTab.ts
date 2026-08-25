@@ -78,18 +78,6 @@ export class SettingsTab extends PluginSettingTab {
         });
       });
 
-    new Setting(containerEl)
-      .setName(t('EXCLUDED_DIRS_NAME'))
-      .setDesc(t('EXCLUDED_DIRS_DESC'))
-      .addTextArea((text) =>
-        text
-          .setPlaceholder('Folder1, Folder2/Subfolder')
-          .setValue(currentSettings.excludedDirectories)
-          .onChange(async (excludedDirectories) => {
-            this.plugin.updateSettings({ ...currentSettings, excludedDirectories });
-          }),
-      );
-
     new Setting(containerEl).setName(t('DAILY_REPORT_HEADING')).setHeading();
 
     new Setting(containerEl)

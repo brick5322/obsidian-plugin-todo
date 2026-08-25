@@ -46,12 +46,9 @@
 ## 数据流
 
 1. Indexer 取得 Vault 中的 Markdown 文件列表。
-2. 现有的用户配置排除目录规则先执行；命中时直接跳过。
-3. `TaskFileFilter.shouldInclude(file)` 按就近顺序解析 frontmatter 指令。
-4. 返回 `false` 时跳过文件；返回 `true` 时读取内容并交给 `Parser`。
-5. 所有收录文件的解析结果用于重建 `TodoTree`。
-
-用户配置的排除目录属于硬排除规则，优先级高于 frontmatter。因此，被设置项排除的文件不能用 `gtd.task: true` 重新纳入。
+2. `TaskFileFilter.shouldInclude(file)` 按就近顺序解析 frontmatter 指令。
+3. 返回 `false` 时跳过文件；返回 `true` 时读取内容并交给 `Parser`。
+4. 所有收录文件的解析结果用于重建 `TodoTree`。
 
 ## 更新与缓存
 
@@ -79,11 +76,10 @@
 - 目标文件也是目录说明文件时不重复判断。
 - 非布尔属性值不生效并继续继承。
 
-为 `Indexer` 添加集成级单元测试，验证硬排除先执行、frontmatter 排除文件不会进入 Parser，以及 metadata 变化会触发重建。最后运行完整 Jest 测试与项目构建。
+为 `Indexer` 添加集成级单元测试，验证 frontmatter 排除文件不会进入 Parser，以及 metadata 变化会触发重建。最后运行完整 Jest 测试与项目构建。
 
 ## 非目标
 
 - 不在设置页增加开关或自定义属性名称。
 - 不支持 tags 或正文行内标签作为筛选指令。
-- 不允许 `gtd.task: true` 覆盖用户配置中的排除目录。
 - 不实现增量计算目录规则影响范围或重建防抖。

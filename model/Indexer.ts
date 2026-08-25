@@ -17,13 +17,8 @@ export class Indexer {
     private metadataCache: MetadataCache,
     private todoTree: TodoTree,
     private parser: Parser,
-    private isPathExcluded: (path: string) => boolean,
     private taskFileFilter: TaskFileFilter,
   ) {}
-
-  setExclusionFilter(isPathExcluded: (path: string) => boolean): void {
-    this.isPathExcluded = isPathExcluded;
-  }
 
   register(): void {
     if (this.registered) return;
@@ -50,7 +45,6 @@ export class Indexer {
     const allItems: TodoItem[] = [];
 
     for (const file of this.vault.getMarkdownFiles()) {
-      if (this.isPathExcluded(file.path)) continue;
       if (!this.taskFileFilter.shouldInclude(file)) continue;
 
       const content = await this.vault.read(file);

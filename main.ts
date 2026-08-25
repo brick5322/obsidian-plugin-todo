@@ -33,7 +33,6 @@ export default class TodoPlugin extends Plugin {
       this.app.metadataCache,
       this.todoTree,
       this.parser,
-      (path) => this.isPathExcluded(path),
       taskFileFilter,
     );
 
@@ -125,16 +124,6 @@ export default class TodoPlugin extends Plugin {
     if (!whitelist || whitelist.trim() === '') return true;
     const dirs = whitelist
       .split(/[,，\n]/)
-      .map((d) => d.trim())
-      .filter((d) => d.length > 0);
-    return dirs.some((dir) => path.startsWith(dir));
-  }
-
-  private isPathExcluded(path: string): boolean {
-    const excludedDirs = this.settings.excludedDirectories || '';
-    if (excludedDirs.trim() === '') return false;
-    const dirs = excludedDirs
-      .split(/[,，]/)
       .map((d) => d.trim())
       .filter((d) => d.length > 0);
     return dirs.some((dir) => path.startsWith(dir));
@@ -529,7 +518,6 @@ export default class TodoPlugin extends Plugin {
     this.dateFormatter = new DateFormatter(this.settings.dateFormat);
     await this.saveData(this.settings);
     this.todoTree.setSettings(settings);
-    this.indexer.setExclusionFilter((path) => this.isPathExcluded(path));
 
     // Update view props if view exists
     if (this.view) {
