@@ -113,83 +113,28 @@ export class TodoTree {
     this.invokeListeners();
   }
 
-  /**
-   * Build tree for a single file using stack algorithm
-   *
-   * Indentation rules:
-   * - Store raw indent (actual space count)
-   * - Calculate level: same indent = same level, larger indent = deeper level
-   * - Track all seen indents and their levels
-   * - Valid nesting: child indent > parent indent
-   * - Level skip error: indent not seen before AND not greater than max seen = error (treat as root)
-   */
+  /** Build a tree using Obsidian's fixed two-space indentation levels. */
   private buildTreeForFile(items: TodoItem[]): void {
-    const stack: { item: TodoItem; indent: number }[] = [];
-    // Track indent -> level mapping for all seen indents
-    const indentToLevel: Map<number, number> = new Map();
-    let maxLevel = -1;
+    const stack: TodoItem[] = [];
 
     for (const item of items) {
-      const indent = item.indentation;
+      const level = item.indentation / 2;
+      const hasValidLevel = Number.isInteger(level) && level >= 0;
+      const parent = hasValidLevel && level > 0 ? stack[level - 1] : undefined;
 
-      // Determine level for this indent
-      let level: number;
-      if (indentToLevel.has(indent)) {
-        // Seen before = same level
-        level = indentToLevel.get(indent)!;
+      if (parent) {
+        item.parentId = parent.taskId;
+        parent.childIds.push(item.taskId);
       } else {
-        // New indent - determine its level
-        // If indent is smaller than some seen indent, we need to "make room" for it
-        // by reassigning levels. The smallest indent should be level 0 (root).
-        const sortedIndents = Array.from(indentToLevel.keys()).sort((a, b) => a - b);
-
-        // Find where this new indent fits in the sorted order
-        let insertPosition = sortedIndents.findIndex(i => i > indent);
-        if (insertPosition === -1) {
-          // New indent is larger than all seen - append at the end
-          insertPosition = sortedIndents.length;
-        }
-
-        // If there are existing indents after this position, they need to shift up
-        const newLevel = insertPosition;
-
-        // Shift existing levels if needed
-        for (let i = insertPosition; i < sortedIndents.length; i++) {
-          const oldIndent = sortedIndents[i];
-          const oldLevel = indentToLevel.get(oldIndent)!;
-          indentToLevel.set(oldIndent, oldLevel + 1);
-        }
-
-        level = newLevel;
-        indentToLevel.set(indent, level);
-        if (level > maxLevel) {
-          maxLevel = level;
-        }
-      }
-
-      // Find parent in stack
-      if (level >= 0) {
-        // Search stack for parent with smaller indent
-        while (stack.length > 0) {
-          const topIndent = stack[stack.length - 1].indent;
-          if (topIndent < indent) {
-            // Found valid parent
-            const parent = stack[stack.length - 1].item;
-            item.parentId = parent.taskId;
-            parent.childIds.push(item.taskId);
-            break;
-          }
-          stack.pop();
-        }
-      }
-
-      if (!item.parentId) {
-        // No valid parent = root item
         this.rootIds.add(item.taskId);
       }
 
-      // Push to stack
-      stack.push({ item, indent });
+      if (hasValidLevel) {
+        stack.length = level;
+        stack[level] = item;
+      } else {
+        stack.length = 0;
+      }
 
       // Add to indices
       this.hashIndex.set(item.taskId, item);

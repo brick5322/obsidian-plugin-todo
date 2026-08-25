@@ -17,31 +17,25 @@ export class Parser {
     const matches = [...fileContents.matchAll(pattern)];
 
     const items: TodoItem[] = [];
-    // Stack to track parent context: [{indent, originalDescription}]
-    const stack: { indent: number; originalDescription: string }[] = [];
+    const stack: string[] = [];
 
     for (const entry of matches) {
       const item = this.parseTask(filePath, entry, fileContents, stack);
       items.push(item);
 
-      // Update stack for next iteration
-      // Pop until we find a smaller indent (sibling or parent)
-      while (stack.length > 0 && stack[stack.length - 1].indent >= item.indentation) {
-        stack.pop();
+      const level = item.indentation / 2;
+      if (Number.isInteger(level) && level >= 0) {
+        stack.length = level;
+        stack[level] = item.originalDescription;
+      } else {
+        stack.length = 0;
       }
-      // Push current item as potential parent
-      stack.push({ indent: item.indentation, originalDescription: item.originalDescription });
     }
 
     return { items };
   }
 
-  private parseTask(
-    filePath: string,
-    entry: RegExpMatchArray,
-    fileContents: string,
-    stack: { indent: number; originalDescription: string }[]
-  ): TodoItem {
+  private parseTask(filePath: string, entry: RegExpMatchArray, fileContents: string, stack: string[]): TodoItem {
     const todoItemOffset = 2; // Strip off `-|* `
     const status = entry[2] === 'x' ? TodoItemStatus.Done : TodoItemStatus.Todo;
     const originalDescription = entry[3].trim();
@@ -66,15 +60,8 @@ export class Parser {
     const normalizedPrefix = prefix.replace(/\t/g, '    ');
     const indentation = normalizedPrefix.length;
 
-    // Find parent originalDescription from stack
-    // Parent is the top of stack with smaller indent
-    let parentDescription = '';
-    for (let i = stack.length - 1; i >= 0; i--) {
-      if (stack[i].indent < indentation) {
-        parentDescription = stack[i].originalDescription;
-        break;
-      }
-    }
+    const level = indentation / 2;
+    const parentDescription = Number.isInteger(level) && level > 0 ? stack[level - 1] ?? '' : '';
 
     // Generate taskId including parent content to differentiate same tasks under different parents
     const hashInput = `${filePath}|${parentDescription}|${indentation}|${originalDescription}`;
@@ -99,7 +86,7 @@ export class Parser {
     let hash = 0;
     for (let i = 0; i < input.length; i++) {
       const char = input.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash;
     }
     const unsignedHash = hash >>> 0;

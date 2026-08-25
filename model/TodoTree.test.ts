@@ -36,7 +36,7 @@ describe('TodoTree', () => {
           description: 'Child task',
           originalDescription: 'Child task',
           isSomedayMaybeNote: false,
-          indentation: 1,
+          indentation: 2,
           childIds: [],
         }),
       ];
@@ -110,7 +110,7 @@ describe('TodoTree', () => {
           description: 'Child 1',
           originalDescription: 'Child 1',
           isSomedayMaybeNote: false,
-          indentation: 1,
+          indentation: 2,
           childIds: [],
         }),
         new TodoItem({
@@ -122,7 +122,7 @@ describe('TodoTree', () => {
           description: 'Grandchild',
           originalDescription: 'Grandchild',
           isSomedayMaybeNote: false,
-          indentation: 2,
+          indentation: 4,
           childIds: [],
         }),
       ];
@@ -135,6 +135,40 @@ describe('TodoTree', () => {
 
       const grandchild = tree.getItem('file.md:20');
       expect(grandchild!.parentId).toBe('file.md:10');
+    });
+
+    test('should require a task at the immediately preceding two-space level', () => {
+      const items: TodoItem[] = [
+        new TodoItem({
+          taskId: 'file.md:0',
+          sourceFilePath: 'file.md',
+          startIndex: 0,
+          length: 10,
+          status: TodoItemStatus.Todo,
+          description: 'Root',
+          originalDescription: 'Root',
+          isSomedayMaybeNote: false,
+          indentation: 0,
+          childIds: [],
+        }),
+        new TodoItem({
+          taskId: 'file.md:10',
+          sourceFilePath: 'file.md',
+          startIndex: 10,
+          length: 10,
+          status: TodoItemStatus.Todo,
+          description: 'Skipped level',
+          originalDescription: 'Skipped level',
+          isSomedayMaybeNote: false,
+          indentation: 4,
+          childIds: [],
+        }),
+      ];
+
+      tree.rebuild(items);
+
+      expect(tree.getRootItems()).toHaveLength(2);
+      expect(tree.getItem('file.md:10')!.parentId).toBeUndefined();
     });
   });
 
@@ -189,7 +223,7 @@ describe('TodoTree', () => {
           description: 'Child',
           originalDescription: 'Child',
           isSomedayMaybeNote: false,
-          indentation: 1,
+          indentation: 2,
           childIds: [],
         }),
       ];
@@ -306,7 +340,7 @@ describe('TodoTree', () => {
           description: 'Child',
           originalDescription: 'Child',
           isSomedayMaybeNote: false,
-          indentation: 1,
+          indentation: 2,
           childIds: [],
         }),
       ];
@@ -344,7 +378,7 @@ describe('TodoTree', () => {
           description: 'Child',
           originalDescription: 'Child #2024-01-15',
           isSomedayMaybeNote: false,
-          indentation: 1,
+          indentation: 2,
           childIds: [],
         }),
       ];
