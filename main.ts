@@ -5,6 +5,7 @@ import { TodoItem, TodoItemStatus } from './model/TodoItem';
 import { TodoTree } from './model/TodoTree';
 import { Parser } from './model/Parser';
 import { Indexer } from './model/Indexer';
+import { TaskFileFilter } from './model/TaskFileFilter';
 import { TodoPluginSettings, DEFAULT_SETTINGS, CompletedTaskRecord } from './model/TodoPluginSettings';
 import { SettingsTab } from './ui/SettingsTab';
 import { DateFormatter } from 'util/DateFormatter';
@@ -26,7 +27,15 @@ export default class TodoPlugin extends Plugin {
     this.todoTree = new TodoTree(this.settings);
     const dateParser = new DateParser(this.settings.dateTagFormat, this.settings.dateFormat);
     this.parser = new Parser(dateParser);
-    this.indexer = new Indexer(this.app.vault, this.todoTree, this.parser, (path) => this.isPathExcluded(path));
+    const taskFileFilter = new TaskFileFilter(this.app.vault, this.app.metadataCache);
+    this.indexer = new Indexer(
+      this.app.vault,
+      this.app.metadataCache,
+      this.todoTree,
+      this.parser,
+      (path) => this.isPathExcluded(path),
+      taskFileFilter,
+    );
 
     // Subscribe to TodoTree changes
     this.todoTree.subscribe(this.tick.bind(this));
@@ -106,7 +115,8 @@ export default class TodoPlugin extends Plugin {
 
     this.app.workspace.onLayoutReady(async () => {
       await this.initLeaf();
-      await this.triggerIndex();
+      await this.indexer.rebuild();
+      this.indexer.register();
     });
   }
 
@@ -528,24 +538,6 @@ export default class TodoPlugin extends Plugin {
         enableDailyReport: this.settings.enableDailyReport,
       }));
     }
-  }
-
-  private async triggerIndex(): Promise<void> {
-    // Scan all markdown files and build the tree
-    const files = this.app.vault.getMarkdownFiles();
-    const allItems: TodoItem[] = [];
-
-    for (const f of files) {
-      if (this.isPathExcluded(f.path)) continue;
-
-      // Use read() instead of cachedRead() to ensure fresh content
-      const content = await this.app.vault.read(f);
-      const result = await this.parser.parseFile(f.path, content);
-      allItems.push(...result.items);
-    }
-
-    this.todoTree.rebuild(allItems);
-    this.indexer.register();
   }
 
   tick(todos: TodoItem[]): void {
