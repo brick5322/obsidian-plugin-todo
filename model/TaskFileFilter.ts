@@ -1,4 +1,4 @@
-import { MetadataCache, parseFrontMatterTags, TFile, Vault } from 'obsidian';
+import { MetadataCache, TFile, Vault } from 'obsidian';
 
 type TaskDirective = 'include' | 'exclude';
 
@@ -34,11 +34,10 @@ export class TaskFileFilter {
 
   private getDirective(file: TFile): TaskDirective | undefined {
     const frontmatter = this.metadataCache.getFileCache(file)?.frontmatter;
-    const tags = parseFrontMatterTags(frontmatter ?? null) ?? [];
-    const normalized = new Set(tags.map((tag) => tag.replace(/^#/, '')));
+    const directive = frontmatter?.['gtd.task'];
 
-    if (normalized.has('gtd.no-task')) return 'exclude';
-    if (normalized.has('gtd.task')) return 'include';
+    if (directive === false) return 'exclude';
+    if (directive === true) return 'include';
     return undefined;
   }
 }

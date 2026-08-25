@@ -4,14 +4,6 @@ jest.mock(
     class TFile {}
     return {
       TFile,
-      parseFrontMatterTags: (frontmatter: { tags?: unknown } | null): string[] | null => {
-        if (!frontmatter || frontmatter.tags === undefined) return null;
-        if (Array.isArray(frontmatter.tags)) return frontmatter.tags as string[];
-        if (typeof frontmatter.tags === 'string') {
-          return frontmatter.tags.split(/[\s,]+/).filter(Boolean);
-        }
-        return null;
-      },
     };
   },
   { virtual: true },
@@ -30,14 +22,16 @@ function makeFile(path: string): TFile {
   }) as TFile;
 }
 
-function setup(paths: string[], tagsByPath: Record<string, unknown> = {}) {
+function setup(paths: string[], frontmatterByPath: Record<string, Record<string, unknown>> = {}) {
   const files = new Map(paths.map((path) => [path, makeFile(path)]));
   const vault = {
     getAbstractFileByPath: jest.fn((path: string) => files.get(path) ?? null),
   } as unknown as Vault;
   const metadataCache = {
     getFileCache: jest.fn((file: TFile): CachedMetadata | null =>
-      file.path in tagsByPath ? ({ frontmatter: { tags: tagsByPath[file.path] } } as unknown as CachedMetadata) : null,
+      file.path in frontmatterByPath
+        ? ({ frontmatter: frontmatterByPath[file.path] } as unknown as CachedMetadata)
+        : null,
     ),
   } as unknown as MetadataCache;
   return { files, filter: new TaskFileFilter(vault, metadataCache), metadataCache };
@@ -50,45 +44,48 @@ describe('TaskFileFilter', () => {
   });
 
   test.each([
-    [['gtd.task'], true],
-    [['gtd.no-task'], false],
-  ])('uses a directive on the file itself', (tags, expected) => {
-    const ctx = setup(['Note.md'], { 'Note.md': tags });
+    [true, true],
+    [false, false],
+  ])('uses a boolean directive on the file itself', (directive, expected) => {
+    const ctx = setup(['Note.md'], { 'Note.md': { 'gtd.task': directive } });
     expect(ctx.filter.shouldInclude(ctx.files.get('Note.md')!)).toBe(expected);
   });
 
   test('inherits from the nearest folder note', () => {
     const ctx = setup(['Projects/Alpha/Note.md', 'Projects/Alpha/Alpha.md'], {
-      'Projects/Alpha/Alpha.md': ['gtd.no-task'],
+      'Projects/Alpha/Alpha.md': { 'gtd.task': false },
     });
     expect(ctx.filter.shouldInclude(ctx.files.get('Projects/Alpha/Note.md')!)).toBe(false);
   });
 
   test('near task overrides far no-task', () => {
     const ctx = setup(['Projects/Alpha/Note.md', 'Projects/Alpha/Alpha.md', 'Projects/Projects.md'], {
-      'Projects/Alpha/Alpha.md': ['gtd.task'],
-      'Projects/Projects.md': ['gtd.no-task'],
+      'Projects/Alpha/Alpha.md': { 'gtd.task': true },
+      'Projects/Projects.md': { 'gtd.task': false },
     });
     expect(ctx.filter.shouldInclude(ctx.files.get('Projects/Alpha/Note.md')!)).toBe(true);
   });
 
   test('file directive overrides folder directive', () => {
     const ctx = setup(['Projects/Alpha/Note.md', 'Projects/Alpha/Alpha.md'], {
-      'Projects/Alpha/Note.md': ['gtd.task'],
-      'Projects/Alpha/Alpha.md': ['gtd.no-task'],
+      'Projects/Alpha/Note.md': { 'gtd.task': true },
+      'Projects/Alpha/Alpha.md': { 'gtd.task': false },
     });
     expect(ctx.filter.shouldInclude(ctx.files.get('Projects/Alpha/Note.md')!)).toBe(true);
   });
 
-  test('no-task wins a same-level conflict and accepts leading hashes', () => {
-    const ctx = setup(['Note.md'], { 'Note.md': ['#gtd.task', '#gtd.no-task'] });
-    expect(ctx.filter.shouldInclude(ctx.files.get('Note.md')!)).toBe(false);
+  test('ignores a non-boolean directive and continues to the parent', () => {
+    const ctx = setup(['Projects/Alpha/Note.md', 'Projects/Alpha/Alpha.md'], {
+      'Projects/Alpha/Note.md': { 'gtd.task': 'true' },
+      'Projects/Alpha/Alpha.md': { 'gtd.task': false },
+    });
+    expect(ctx.filter.shouldInclude(ctx.files.get('Projects/Alpha/Note.md')!)).toBe(false);
   });
 
   test('does not inspect a folder note twice when it is the target', () => {
     const ctx = setup(['Projects/Alpha/Alpha.md', 'Projects/Projects.md'], {
-      'Projects/Alpha/Alpha.md': ['gtd.task'],
-      'Projects/Projects.md': ['gtd.no-task'],
+      'Projects/Alpha/Alpha.md': { 'gtd.task': true },
+      'Projects/Projects.md': { 'gtd.task': false },
     });
     expect(ctx.filter.shouldInclude(ctx.files.get('Projects/Alpha/Alpha.md')!)).toBe(true);
     expect(ctx.metadataCache.getFileCache).toHaveBeenCalledTimes(1);

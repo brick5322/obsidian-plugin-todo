@@ -2,7 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Filter indexed task files using nearest-wins `gtd.task` and `gtd.no-task` frontmatter tags inherited from folder notes.
+**Goal:** Filter indexed task files using a nearest-wins `gtd.task` boolean frontmatter property inherited from folder notes.
+
+> **Amendment (2026-08-25):** The implemented directive changed from tags to the dotted boolean property `gtd.task`. `true` includes, `false` excludes, and a missing or non-boolean value inherits. The tag-based snippets below document the original RED/GREEN plan; the final source and tests contain the amended implementation.
 
 **Architecture:** Add a focused `TaskFileFilter` that resolves directives through Obsidian's `MetadataCache`. Inject it into `Indexer`, make `Indexer.rebuild()` the only full-scan entry point, and rebuild after metadata-cache changes so updated inherited rules are eventually applied.
 
