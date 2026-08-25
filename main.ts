@@ -236,7 +236,6 @@ export default class TodoPlugin extends Plugin {
   async trackCompletedTaskRecord(todo: TodoItem): Promise<void> {
     if (!this.settings.enableDailyReport) return;
     if (!this.isPathWhitelisted(todo.sourceFilePath)) return;
-    if (this.isPathExcluded(todo.sourceFilePath)) return;
 
     const today = DateTime.now().toFormat('yyyy-MM-dd');
 
@@ -438,9 +437,8 @@ export default class TodoPlugin extends Plugin {
         continue;
       }
 
-      // Skip if not whitelisted or excluded
+      // Skip if not whitelisted
       if (!this.isPathWhitelisted(item.sourceFilePath)) continue;
-      if (this.isPathExcluded(item.sourceFilePath)) continue;
 
       // If parent is also Todo, skip (it will be included with parent)
       if (item.parentId) {
