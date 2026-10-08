@@ -303,7 +303,16 @@ export class TodoItemView extends ItemView {
       errorEl.setText('⚠ ' + item.parseError);
     }
 
-    MarkdownRenderer.renderMarkdown(item.description, descContainer, item.sourceFilePath, this);
+    const descriptionEl = descContainer.createDiv({ cls: 'todo-item-desc-text' });
+    MarkdownRenderer.renderMarkdown(item.description, descriptionEl, item.sourceFilePath, this);
+
+    // #T[n] 相对日期标签解析出的真实日期：展示在标签旁，便于确认落在哪一天
+    if (item.date) {
+      descContainer.createEl('span', {
+        text: `(${this.props.formatDate(item.date)})`,
+        cls: 'todo-item-relative-date',
+      });
+    }
 
     if (item.childIds.length > 0) {
       const childrenContainer = container.createDiv('todo-item-children');

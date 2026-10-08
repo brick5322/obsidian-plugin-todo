@@ -186,8 +186,8 @@ export class TodoTree {
    * Calculate actionDate in realtime (date inheritance from parent or daily note)
    */
   getActionDate(item: TodoItem): DateTime | undefined {
-    // Parse date from originalDescription
-    const selfDate = this.dateParser.parseDate(item.originalDescription);
+    // 优先使用 #T[n] 相对日期标签算出的日期，其次解析 originalDescription 中的日期标签
+    const selfDate = item.date ?? this.dateParser.parseDate(item.originalDescription);
 
     if (selfDate) {
       // If has parent, use min(selfDate, parent's actionDate)

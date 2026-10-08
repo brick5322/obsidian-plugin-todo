@@ -1,3 +1,5 @@
+import { DateTime } from 'luxon';
+
 export enum TodoItemStatus {
   Todo = 0,
   Done = 1,
@@ -17,6 +19,7 @@ export interface TodoItemProps {
   parentId?: string;
   childIds?: string[];
   parseError?: string;       // 解析错误信息，如"层级跨越"
+  date?: DateTime;           // 相对日期标签 #T[n] 解析出的真实日期（基准日来自笔记 todo.date 属性）
 }
 
 export class TodoItem {
@@ -32,6 +35,7 @@ export class TodoItem {
   public parentId?: string;
   public childIds: string[];
   public parseError?: string;  // 解析错误信息
+  public date?: DateTime;      // 相对日期标签 #T[n] 解析出的真实日期
 
   constructor(props: TodoItemProps) {
     this.taskId = props.taskId;
@@ -46,5 +50,6 @@ export class TodoItem {
     this.parentId = props.parentId;
     this.childIds = props.childIds ?? [];
     this.parseError = props.parseError;
+    this.date = props.date;
   }
 }
