@@ -19,13 +19,14 @@ export default class TodoPlugin extends Plugin {
   private parser: Parser;
   private view: TodoItemView;
   private settings: TodoPluginSettings;
+  private dateParser: DateParser;
 
   constructor(app: App, manifest: PluginManifest) {
     super(app, manifest);
     this.settings = DEFAULT_SETTINGS;
     this.todoTree = new TodoTree(this.settings);
-    const dateParser = new DateParser(this.settings.dateTagFormat, this.settings.dateFormat);
-    this.parser = new Parser(dateParser);
+    this.dateParser = new DateParser(this.settings.dateTagFormat, this.settings.dateFormat);
+    this.parser = new Parser(this.dateParser);
     this.indexer = new Indexer(this.app.vault, this.todoTree, this.parser);
 
     // Subscribe to TodoTree changes
@@ -36,6 +37,27 @@ export default class TodoPlugin extends Plugin {
     this.settings = Object.assign(DEFAULT_SETTINGS, (await this.loadData()) ?? {});
     this.dateFormatter = new DateFormatter(this.settings.dateFormat);
     this.addSettingTab(new SettingsTab(this.app, this));
+
+    // 笔记正文：`#T[n]` 相对日期标签旁渲染解析出的真实日期（读该笔记 frontmatter 的 todo.date）
+    this.registerMarkdownPostProcessor((el, ctx) => {
+      if (!ctx.sourcePath) return;
+      void this.app.vault.cachedRead(ctx.sourcePath).then((content) => {
+        const baseDate = this.dateParser.parseTodoDateProperty(content);
+        if (!baseDate) return;
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        let node: Node | null;
+        const textNodes: Text[] = [];
+        while ((node = walker.nextNode())) textNodes.push(node as Text);
+        for (const textNode of textNodes) {
+          const date = this.dateParser.parseRelativeDate(textNode.textContent ?? '', baseDate);
+          if (!date) continue;
+          const span = document.createElement('span');
+          span.className = 'todo-item-relative-date';
+          span.textContent = `(${this.dateFormatter.formatDate(date)})`;
+          textNode.parentNode?.insertBefore(span, textNode.nextSibling);
+        }
+      });
+    });
 
     this.registerView(VIEW_TYPE_TODO, (leaf: WorkspaceLeaf) => {
       const todos: TodoItem[] = [];
