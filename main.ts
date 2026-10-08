@@ -11,6 +11,7 @@ import { DateFormatter } from 'util/DateFormatter';
 import { DateTime } from 'luxon';
 import { DateParser } from './util/DateParser';
 import { relativeDateEditorExtension } from './util/RelativeDateDecoration';
+import { resolveRelativeDateTag } from './util/RelativeDateDom';
 import { t } from './lang/helpers';
 
 // obsidian 0.12 类型缺编辑器扩展 API；运行时(Obsidian 1.x, CM6 编辑器)内置 registerEditorExtension，故在此补类型
@@ -64,16 +65,7 @@ export default class TodoPlugin extends Plugin {
         for (const textNode of textNodes) {
           const date = this.dateParser.parseRelativeDate(textNode.textContent ?? '', baseDate);
           if (!date) continue;
-          const span = document.createElement('span');
-          span.className = 'todo-item-relative-date';
-          span.textContent = `(${this.dateFormatter.formatDate(date)})`;
-          // 插到标签元素(通常 <a class=tag>)之后而非内部，否则被 tag 内联样式盖住
-          const anchor = textNode.parentElement;
-          if (anchor && anchor.parentNode) {
-            anchor.parentNode.insertBefore(span, anchor.nextSibling);
-          } else {
-            textNode.parentNode?.insertBefore(span, textNode.nextSibling);
-          }
+          resolveRelativeDateTag(textNode, this.dateFormatter.formatDate(date));
         }
       });
     });

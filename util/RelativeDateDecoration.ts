@@ -1,54 +1,52 @@
 import { EditorView, ViewPlugin, Decoration, DecorationSet, WidgetType, ViewUpdate } from '@codemirror/view';
-import { Range } from '@codemirror/state';
+import { Extension, Range } from '@codemirror/state';
 import type { DateParser } from './DateParser';
 import type { DateFormatter } from './DateFormatter';
+import { buildRelativeDatePlans } from './RelativeDatePlan';
 
-/** 在编辑模式（Source / Live Preview）中，于 `#T[n]` 标签后追加解析出的真实日期。 */
-class RelativeDateWidget extends WidgetType {
-  constructor(readonly text: string) {
+/** 光标离开相对日期标签时，把它渲染为可点击的绝对日期标签。 */
+class ResolvedDateTagWidget extends WidgetType {
+  constructor(readonly tag: string) {
     super();
   }
 
-  eq(other: RelativeDateWidget): boolean {
-    return other.text === this.text;
+  eq(other: ResolvedDateTagWidget): boolean {
+    return other.tag === this.tag;
   }
 
   toDOM(): HTMLElement {
-    const span = document.createElement('span');
-    span.className = 'todo-item-relative-date';
-    span.textContent = this.text;
-    return span;
+    const anchor = document.createElement('a');
+    anchor.className = 'tag';
+    anchor.setAttribute('href', this.tag);
+    anchor.textContent = this.tag;
+    return anchor;
   }
 }
 
-function buildDecorations(
-  view: EditorView,
-  dateParser: DateParser,
-  dateFormatter: DateFormatter
-): DecorationSet {
+function buildDecorations(view: EditorView, dateParser: DateParser, dateFormatter: DateFormatter): DecorationSet {
   const text = view.state.doc.toString();
   const baseDate = dateParser.parseTodoDateProperty(text);
   if (!baseDate) {
     return Decoration.none;
   }
-  const relativeTag = /#T(-?\d+)(?![0-9A-Za-z_/-])/g;
   const decorations: Range<Decoration>[] = [];
-  let match: RegExpExecArray | null;
-  while ((match = relativeTag.exec(text)) !== null) {
-    const tagEnd = match.index + match[0].length;
-    const date = baseDate.plus({ days: +match[1] });
-    const label = ` (${dateFormatter.formatDate(date)})`;
-    decorations.push(
-      Decoration.widget({ widget: new RelativeDateWidget(label), side: 1 }).range(tagEnd, tagEnd)
-    );
+  const plans = buildRelativeDatePlans(
+    text,
+    baseDate,
+    (date) => dateFormatter.formatDate(date),
+    view.state.selection.ranges,
+  );
+  for (const plan of plans) {
+    if (!plan.active) {
+      decorations.push(
+        Decoration.replace({ widget: new ResolvedDateTagWidget(plan.resolvedTag) }).range(plan.from, plan.to),
+      );
+    }
   }
   return Decoration.set(decorations, true);
 }
 
-export const relativeDateEditorExtension = (
-  dateParser: DateParser,
-  dateFormatter: DateFormatter
-) =>
+export const relativeDateEditorExtension = (dateParser: DateParser, dateFormatter: DateFormatter): Extension =>
   ViewPlugin.fromClass(
     class {
       decorations: DecorationSet;
@@ -58,10 +56,10 @@ export const relativeDateEditorExtension = (
       }
 
       update(update: ViewUpdate) {
-        if (update.docChanged || update.viewportChanged) {
+        if (update.docChanged || update.viewportChanged || update.selectionSet) {
           this.decorations = buildDecorations(update.view, dateParser, dateFormatter);
         }
       }
     },
-    { decorations: (value) => value.decorations }
+    { decorations: (value) => value.decorations },
   );

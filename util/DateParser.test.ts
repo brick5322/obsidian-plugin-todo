@@ -70,6 +70,10 @@ describe('relative date tags (#T[n])', () => {
     expect(dateParser.parseRelativeDate('Buy ticket #T0', baseDate)?.toISODate()).toBe('2026-10-08');
   });
 
+  test('should treat a bare #T tag as #T0', () => {
+    expect(dateParser.parseRelativeDate('Buy ticket #T', baseDate)?.toISODate()).toBe('2026-10-08');
+  });
+
   test('should resolve an unsigned offset as days after the base date', () => {
     expect(dateParser.parseRelativeDate('Buy ticket #T1', baseDate)?.toISODate()).toBe('2026-10-09');
   });

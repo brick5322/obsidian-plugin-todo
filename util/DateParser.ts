@@ -9,7 +9,7 @@ export class DateParser {
    * 匹配 `#T[n]`：n 为整数，无符号表示基准日之后的偏移，`-n` 表示提前。
    * Obsidian 标签字符白名单不含 `+`，因此不使用 `#T+1` 写法。
    */
-  private static relativeDateRegexp = new RegExp(`${DateParser.RelativeDateTagPrefix}(-?\\d+)(?![0-9A-Za-z_/-])`);
+  private static relativeDateRegexp = new RegExp(`${DateParser.RelativeDateTagPrefix}(-?\\d+)?(?![+0-9A-Za-z_/-])`);
   private dateFormat: string;
   private regexp: RegExp;
 
@@ -56,7 +56,7 @@ export class DateParser {
       return undefined;
     }
 
-    const offsetInDays = parseInt(matches[1], 10);
+    const offsetInDays = matches[1] === undefined ? 0 : parseInt(matches[1], 10);
     if (isNaN(offsetInDays)) {
       return undefined;
     }

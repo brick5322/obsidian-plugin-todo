@@ -4,6 +4,7 @@ import { VIEW_TYPE_TODO } from '../constants';
 import { TodoItem, TodoItemStatus } from '../model/TodoItem';
 import { RenderIcon, Icon } from '../ui/icons';
 import { t } from '../lang/helpers';
+import { removeRelativeDateTags } from '../util/RelativeDatePlan';
 
 enum TodoItemViewPane {
   Today,
@@ -236,11 +237,12 @@ export class TodoItemView extends ItemView {
 
     const infoContainer = header.createDiv('todo-item-block-info');
     const titleEl = infoContainer.createDiv({ cls: 'todo-item-block-title' });
-    titleEl.setText(root.description);
+    const rootDescription = removeRelativeDateTags(root.description);
+    titleEl.setText(rootDescription);
 
     const temp = document.createElement('div');
-    MarkdownRenderer.renderMarkdown(root.description, temp, root.sourceFilePath, this).then(() => {
-      titleEl.setText(temp.textContent || root.description);
+    MarkdownRenderer.renderMarkdown(rootDescription, temp, root.sourceFilePath, this).then(() => {
+      titleEl.setText(temp.textContent || rootDescription);
     });
 
     infoContainer.createDiv({ text: root.sourceFilePath, cls: 'todo-item-block-path' });
@@ -304,15 +306,8 @@ export class TodoItemView extends ItemView {
     }
 
     const descriptionEl = descContainer.createDiv({ cls: 'todo-item-desc-text' });
-    MarkdownRenderer.renderMarkdown(item.description, descriptionEl, item.sourceFilePath, this);
-
-    // #T[n] 相对日期标签解析出的真实日期：展示在标签旁，便于确认落在哪一天
-    if (item.date) {
-      descContainer.createEl('span', {
-        text: `(${this.props.formatDate(item.date)})`,
-        cls: 'todo-item-relative-date',
-      });
-    }
+    const displayDescription = removeRelativeDateTags(item.description);
+    void MarkdownRenderer.renderMarkdown(displayDescription, descriptionEl, item.sourceFilePath, this);
 
     if (item.childIds.length > 0) {
       const childrenContainer = container.createDiv('todo-item-children');
