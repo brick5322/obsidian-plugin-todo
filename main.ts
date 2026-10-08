@@ -40,23 +40,29 @@ export default class TodoPlugin extends Plugin {
 
     // 笔记正文：`#T[n]` 相对日期标签旁渲染解析出的真实日期（读该笔记 frontmatter 的 todo.date）
     this.registerMarkdownPostProcessor((el, ctx) => {
+      console.log('[todo] postprocessor runs for:', ctx.sourcePath);
       if (!ctx.sourcePath) return;
       const noteFile = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
-      if (!(noteFile instanceof TFile)) return;
+      if (!(noteFile instanceof TFile)) { console.log('[todo] no TFile for path'); return; }
       void this.app.vault.cachedRead(noteFile).then((content) => {
+        console.log('[todo] read ok, len', content.length, '| head:', JSON.stringify(content.slice(0, 90)));
         const baseDate = this.dateParser.parseTodoDateProperty(content);
+        console.log('[todo] baseDate =', baseDate?.toISODate());
         if (!baseDate) return;
         const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
         let node: Node | null;
         const textNodes: Text[] = [];
         while ((node = walker.nextNode())) textNodes.push(node as Text);
+        console.log('[todo] textNodes:', textNodes.map((n) => n.textContent));
         for (const textNode of textNodes) {
           const date = this.dateParser.parseRelativeDate(textNode.textContent ?? '', baseDate);
+          console.log('[todo] parseRelativeDate(', JSON.stringify(textNode.textContent), ') =', date?.toISODate());
           if (!date) continue;
           const span = document.createElement('span');
           span.className = 'todo-item-relative-date';
           span.textContent = `(${this.dateFormatter.formatDate(date)})`;
           textNode.parentNode?.insertBefore(span, textNode.nextSibling);
+          console.log('[todo] inserted date span for', textNode.textContent);
         }
       });
     });
