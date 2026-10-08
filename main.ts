@@ -64,14 +64,15 @@ export default class TodoPlugin extends Plugin {
         for (const textNode of textNodes) {
           const date = this.dateParser.parseRelativeDate(textNode.textContent ?? '', baseDate);
           if (!date) continue;
-          const span = document.createElement('span');
-          span.className = 'todo-item-relative-date';
-          span.textContent = `(${this.dateFormatter.formatDate(date)})`;
-          // 插到标签元素(通常 <a class=tag>)之后而非内部，否则被 tag 内联样式盖住
           const anchor = textNode.parentElement;
-          if (anchor && anchor.parentNode) {
-            anchor.parentNode.insertBefore(span, anchor.nextSibling);
+          if (anchor && anchor.classList.contains('tag')) {
+            // A 方案：把日期并进标签块内，一个 tag 一体
+            const text = anchor.textContent ?? '';
+            anchor.textContent = `${text} (${this.dateFormatter.formatDate(date)})`;
           } else {
+            const span = document.createElement('span');
+            span.className = 'todo-item-relative-date';
+            span.textContent = `(${this.dateFormatter.formatDate(date)})`;
             textNode.parentNode?.insertBefore(span, textNode.nextSibling);
           }
         }

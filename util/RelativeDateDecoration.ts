@@ -15,7 +15,7 @@ class RelativeDateWidget extends WidgetType {
 
   toDOM(): HTMLElement {
     const span = document.createElement('span');
-    // 复用 Obsidian 编辑模式标签的 hashtag 样式，让日期块与 #T[n] 同背景色、视觉一体
+    // A 方案：整个标签 replace 成一个带日期的 tag 块，同背景样式一体
     span.className = 'cm-hashtag cm-meta todo-item-relative-date';
     span.textContent = this.text;
     return span;
@@ -38,9 +38,10 @@ function buildDecorations(
   while ((match = relativeTag.exec(text)) !== null) {
     const tagEnd = match.index + match[0].length;
     const date = baseDate.plus({ days: +match[1] });
-    const label = ` (${dateFormatter.formatDate(date)})`;
+    // A 方案：把整个 #T[n] 替换成一个带解析日期的 tag 块（同背景一体）
+    const label = `${match[0]} (${dateFormatter.formatDate(date)})`;
     decorations.push(
-      Decoration.widget({ widget: new RelativeDateWidget(label), side: 1 }).range(tagEnd, tagEnd)
+      Decoration.replace({ widget: new RelativeDateWidget(label) }).range(match.index, tagEnd)
     );
   }
   return Decoration.set(decorations, true);
