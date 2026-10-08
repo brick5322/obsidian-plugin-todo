@@ -15,7 +15,8 @@ class RelativeDateWidget extends WidgetType {
 
   toDOM(): HTMLElement {
     const span = document.createElement('span');
-    span.className = 'todo-item-relative-date';
+    // 复用 Obsidian 编辑模式标签的 hashtag 样式，让日期块与 #T[n] 同背景色、视觉一体
+    span.className = 'cm-hashtag cm-meta todo-item-relative-date';
     span.textContent = this.text;
     return span;
   }
