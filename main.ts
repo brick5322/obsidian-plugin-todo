@@ -10,6 +10,7 @@ import { SettingsTab } from './ui/SettingsTab';
 import { DateFormatter } from 'util/DateFormatter';
 import { DateTime } from 'luxon';
 import { DateParser } from './util/DateParser';
+import { relativeDateEditorExtension } from './util/RelativeDateDecoration';
 import { t } from './lang/helpers';
 
 export default class TodoPlugin extends Plugin {
@@ -38,29 +39,27 @@ export default class TodoPlugin extends Plugin {
     this.dateFormatter = new DateFormatter(this.settings.dateFormat);
     this.addSettingTab(new SettingsTab(this.app, this));
 
-    // 笔记正文：`#T[n]` 相对日期标签旁渲染解析出的真实日期（读该笔记 frontmatter 的 todo.date）
+    // 编辑模式（Source / Live Preview）：CodeMirror decoration 实时在 `#T[n]` 后追加日期
+    this.registerEditorExtension(relativeDateEditorExtension(this.dateParser, this.dateFormatter));
+
+    // 阅读模式：markdown postprocessor 在 `#T[n]` 标签后渲染解析出的真实日期（读 frontmatter 的 todo.date）
     this.registerMarkdownPostProcessor((el, ctx) => {
-      console.log('[todo] postprocessor runs for:', ctx.sourcePath);
       if (!ctx.sourcePath) return;
       const noteFile = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
-      if (!(noteFile instanceof TFile)) { console.log('[todo] no TFile for path'); return; }
+      if (!(noteFile instanceof TFile)) return;
       void this.app.vault.cachedRead(noteFile).then((content) => {
-        console.log('[todo] read ok, len', content.length, '| head:', JSON.stringify(content.slice(0, 90)));
         const baseDate = this.dateParser.parseTodoDateProperty(content);
-        console.log('[todo] baseDate =', baseDate?.toISODate());
         if (!baseDate) return;
         const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
         let node: Node | null;
         const textNodes: Text[] = [];
         while ((node = walker.nextNode())) textNodes.push(node as Text);
-        console.log('[todo] textNodes:', textNodes.map((n) => n.textContent));
         for (const textNode of textNodes) {
-          const d = this.dateParser.parseRelativeDate(textNode.textContent ?? '', baseDate);
-          console.log('[todo] parseRelativeDate(', JSON.stringify(textNode.textContent), ') =', d?.toISODate());
-          if (!d) continue;
+          const date = this.dateParser.parseRelativeDate(textNode.textContent ?? '', baseDate);
+          if (!date) continue;
           const span = document.createElement('span');
           span.className = 'todo-item-relative-date';
-          span.textContent = `(${this.dateFormatter.formatDate(d)})`;
+          span.textContent = `(${this.dateFormatter.formatDate(date)})`;
           // 插到标签元素(通常 <a class=tag>)之后而非内部，否则被 tag 内联样式盖住
           const anchor = textNode.parentElement;
           if (anchor && anchor.parentNode) {
@@ -68,7 +67,6 @@ export default class TodoPlugin extends Plugin {
           } else {
             textNode.parentNode?.insertBefore(span, textNode.nextSibling);
           }
-          console.log('[todo] inserted date span (after tag el) for', textNode.textContent);
         }
       });
     });
