@@ -55,14 +55,20 @@ export default class TodoPlugin extends Plugin {
         while ((node = walker.nextNode())) textNodes.push(node as Text);
         console.log('[todo] textNodes:', textNodes.map((n) => n.textContent));
         for (const textNode of textNodes) {
-          const date = this.dateParser.parseRelativeDate(textNode.textContent ?? '', baseDate);
-          console.log('[todo] parseRelativeDate(', JSON.stringify(textNode.textContent), ') =', date?.toISODate());
-          if (!date) continue;
+          const d = this.dateParser.parseRelativeDate(textNode.textContent ?? '', baseDate);
+          console.log('[todo] parseRelativeDate(', JSON.stringify(textNode.textContent), ') =', d?.toISODate());
+          if (!d) continue;
           const span = document.createElement('span');
           span.className = 'todo-item-relative-date';
-          span.textContent = `(${this.dateFormatter.formatDate(date)})`;
-          textNode.parentNode?.insertBefore(span, textNode.nextSibling);
-          console.log('[todo] inserted date span for', textNode.textContent);
+          span.textContent = `(${this.dateFormatter.formatDate(d)})`;
+          // 插到标签元素(通常 <a class=tag>)之后而非内部，否则被 tag 内联样式盖住
+          const anchor = textNode.parentElement;
+          if (anchor && anchor.parentNode) {
+            anchor.parentNode.insertBefore(span, anchor.nextSibling);
+          } else {
+            textNode.parentNode?.insertBefore(span, textNode.nextSibling);
+          }
+          console.log('[todo] inserted date span (after tag el) for', textNode.textContent);
         }
       });
     });
