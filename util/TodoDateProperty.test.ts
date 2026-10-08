@@ -1,24 +1,10 @@
 import { extractTodoDatePropertyValue } from './TodoDateProperty';
 
 describe('extractTodoDatePropertyValue', () => {
-  test('extracts todo.date from frontmatter', () => {
-    const contents = `---
-todo:
-  date: 2026-10-08
----
-
-- [ ] Buy train ticket #T-1
-`;
-
-    expect(extractTodoDatePropertyValue(contents)).toBe('2026-10-08');
-  });
-
-  test('extracts todo.date when other properties surround it', () => {
+  test('extracts flattened todo.date from frontmatter', () => {
     const contents = `---
 title: Trip
-todo:
-  date: 2026-10-08
-  owner: me
+todo.date: 2026-10-08
 tags:
   - trip
 ---
@@ -27,29 +13,31 @@ tags:
     expect(extractTodoDatePropertyValue(contents)).toBe('2026-10-08');
   });
 
-  test('strips quotes around the value', () => {
+  test('extracts todo.date when it is the only property', () => {
     const contents = `---
-todo:
-  date: "2026-10-08"
+todo.date: 2026-10-08
 ---
 `;
-    expect(extractTodoDatePropertyValue(contents)).toBe('2026-10-08');
 
-    const singleQuoted = `---
-todo:
-  date: '2026-10-08'
----
-`;
-    expect(extractTodoDatePropertyValue(singleQuoted)).toBe('2026-10-08');
+    expect(extractTodoDatePropertyValue(contents)).toBe('2026-10-08');
   });
 
-  test('ignores date keys outside the todo block', () => {
+  test('strips quotes around the value', () => {
+    expect(extractTodoDatePropertyValue(`---\ntodo.date: "2026-10-08"\n---\n`)).toBe('2026-10-08');
+    expect(extractTodoDatePropertyValue(`---\ntodo.date: '2026-10-08'\n---\n`)).toBe('2026-10-08');
+  });
+
+  test('handles CRLF line endings', () => {
+    expect(extractTodoDatePropertyValue('---\r\ntodo.date: 2026-10-08\r\n---\r\n')).toBe('2026-10-08');
+  });
+
+  test('does not treat other dotted keys as todo.date', () => {
     const contents = `---
-date: 2026-01-01
-todo:
-  owner: me
+owner.name: me
+todo.owner: me
 ---
 `;
+
     expect(extractTodoDatePropertyValue(contents)).toBeUndefined();
   });
 
@@ -63,12 +51,7 @@ todo:
   owner: me
 ---
 `;
+
     expect(extractTodoDatePropertyValue(contents)).toBeUndefined();
-  });
-
-  test('handles indented todo blocks and CRLF line endings', () => {
-    const contents = '---\r\nsomething: else\r\ntodo:\r\n    date: 2026-10-08\r\n---\r\n';
-
-    expect(extractTodoDatePropertyValue(contents)).toBe('2026-10-08');
   });
 });
