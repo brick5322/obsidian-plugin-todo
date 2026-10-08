@@ -41,7 +41,9 @@ export default class TodoPlugin extends Plugin {
     // 笔记正文：`#T[n]` 相对日期标签旁渲染解析出的真实日期（读该笔记 frontmatter 的 todo.date）
     this.registerMarkdownPostProcessor((el, ctx) => {
       if (!ctx.sourcePath) return;
-      void this.app.vault.cachedRead(ctx.sourcePath).then((content) => {
+      const noteFile = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
+      if (!(noteFile instanceof TFile)) return;
+      void this.app.vault.cachedRead(noteFile).then((content) => {
         const baseDate = this.dateParser.parseTodoDateProperty(content);
         if (!baseDate) return;
         const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
