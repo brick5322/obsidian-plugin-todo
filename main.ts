@@ -13,6 +13,13 @@ import { DateParser } from './util/DateParser';
 import { relativeDateEditorExtension } from './util/RelativeDateDecoration';
 import { t } from './lang/helpers';
 
+// obsidian 0.12 类型缺编辑器扩展 API；运行时(Obsidian 1.x, CM6 编辑器)内置 registerEditorExtension，故在此补类型
+declare module 'obsidian' {
+  interface Plugin {
+    registerEditorExtension(extension: unknown): void;
+  }
+}
+
 export default class TodoPlugin extends Plugin {
   private dateFormatter: DateFormatter;
   private todoTree: TodoTree;
