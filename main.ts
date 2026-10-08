@@ -10,7 +10,16 @@ import { SettingsTab } from './ui/SettingsTab';
 import { DateFormatter } from 'util/DateFormatter';
 import { DateTime } from 'luxon';
 import { DateParser } from './util/DateParser';
+import { relativeDateEditorExtension } from './util/RelativeDateDecoration';
+import { resolveRelativeDateTag } from './util/RelativeDateDom';
 import { t } from './lang/helpers';
+
+// obsidian 0.12 类型缺编辑器扩展 API；运行时(Obsidian 1.x, CM6 编辑器)内置 registerEditorExtension，故在此补类型
+declare module 'obsidian' {
+  interface Plugin {
+    registerEditorExtension(extension: unknown): void;
+  }
+}
 
 export default class TodoPlugin extends Plugin {
   private dateFormatter: DateFormatter;
@@ -19,13 +28,14 @@ export default class TodoPlugin extends Plugin {
   private parser: Parser;
   private view: TodoItemView;
   private settings: TodoPluginSettings;
+  private dateParser: DateParser;
 
   constructor(app: App, manifest: PluginManifest) {
     super(app, manifest);
     this.settings = DEFAULT_SETTINGS;
     this.todoTree = new TodoTree(this.settings);
-    const dateParser = new DateParser(this.settings.dateTagFormat, this.settings.dateFormat);
-    this.parser = new Parser(dateParser);
+    this.dateParser = new DateParser(this.settings.dateTagFormat, this.settings.dateFormat);
+    this.parser = new Parser(this.dateParser);
     this.indexer = new Indexer(this.app.vault, this.todoTree, this.parser);
 
     // Subscribe to TodoTree changes
@@ -36,6 +46,29 @@ export default class TodoPlugin extends Plugin {
     this.settings = Object.assign(DEFAULT_SETTINGS, (await this.loadData()) ?? {});
     this.dateFormatter = new DateFormatter(this.settings.dateFormat);
     this.addSettingTab(new SettingsTab(this.app, this));
+
+    // 编辑模式（Source / Live Preview）：CodeMirror decoration 实时在 `#T[n]` 后追加日期
+    this.registerEditorExtension(relativeDateEditorExtension(this.dateParser, this.dateFormatter));
+
+    // 阅读模式：markdown postprocessor 在 `#T[n]` 标签后渲染解析出的真实日期（读 frontmatter 的 todo.date）
+    this.registerMarkdownPostProcessor((el, ctx) => {
+      if (!ctx.sourcePath) return;
+      const noteFile = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
+      if (!(noteFile instanceof TFile)) return;
+      void this.app.vault.cachedRead(noteFile).then((content) => {
+        const baseDate = this.dateParser.parseTodoDateProperty(content);
+        if (!baseDate) return;
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        let node: Node | null;
+        const textNodes: Text[] = [];
+        while ((node = walker.nextNode())) textNodes.push(node as Text);
+        for (const textNode of textNodes) {
+          const date = this.dateParser.parseRelativeDate(textNode.textContent ?? '', baseDate);
+          if (!date) continue;
+          resolveRelativeDateTag(textNode, this.dateFormatter.formatDate(date));
+        }
+      });
+    });
 
     this.registerView(VIEW_TYPE_TODO, (leaf: WorkspaceLeaf) => {
       const todos: TodoItem[] = [];

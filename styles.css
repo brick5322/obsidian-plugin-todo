@@ -277,6 +277,13 @@ div.todo-item-desc-container p {
     margin: 0;
 }
 
+span.todo-item-relative-date {
+    display: inline-block;
+    margin-top: 2px;
+    font-size: 0.8em;
+    color: var(--text-muted);
+}
+
 /* Override checkbox style if needed */
 div.todo-item-checkbox-container input[type="checkbox"] {
     cursor: pointer;

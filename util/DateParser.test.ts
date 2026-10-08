@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon';
 import { DateParser } from './DateParser';
 
 test('initializing the date parser without the date token', () => {
@@ -59,4 +60,80 @@ test('extracting a date if the tag format contains date format tokens', () => {
   expect(date.day).toEqual(16);
   expect(date.month).toEqual(2);
   expect(date.year).toEqual(2021);
+});
+
+describe('relative date tags (#T[n])', () => {
+  const dateParser = new DateParser(`#${DateParser.DateToken}`, 'yyyy-MM-dd');
+  const baseDate = DateTime.fromFormat('2026-10-08', 'yyyy-MM-dd');
+
+  test('should resolve #T0 to the base date', () => {
+    expect(dateParser.parseRelativeDate('Buy ticket #T0', baseDate)?.toISODate()).toBe('2026-10-08');
+  });
+
+  test('should treat a bare #T tag as #T0', () => {
+    expect(dateParser.parseRelativeDate('Buy ticket #T', baseDate)?.toISODate()).toBe('2026-10-08');
+  });
+
+  test('should resolve an unsigned offset as days after the base date', () => {
+    expect(dateParser.parseRelativeDate('Buy ticket #T1', baseDate)?.toISODate()).toBe('2026-10-09');
+  });
+
+  test('should resolve a negative offset as days before the base date', () => {
+    expect(dateParser.parseRelativeDate('Buy ticket #T-1', baseDate)?.toISODate()).toBe('2026-10-07');
+    expect(dateParser.parseRelativeDate('Buy ticket #T-7', baseDate)?.toISODate()).toBe('2026-10-01');
+  });
+
+  test('should not resolve #T[n] without a base date', () => {
+    expect(dateParser.parseRelativeDate('Buy ticket #T1', undefined)).toBeUndefined();
+  });
+
+  test('should not resolve the unsupported #T+1 form', () => {
+    expect(dateParser.parseRelativeDate('Buy ticket #T+1', baseDate)).toBeUndefined();
+  });
+
+  test('should not resolve tags that merely start with #T', () => {
+    expect(dateParser.parseRelativeDate('Buy ticket #T1abc', baseDate)).toBeUndefined();
+    expect(dateParser.parseRelativeDate('Buy ticket #T1/note', baseDate)).toBeUndefined();
+    expect(dateParser.parseRelativeDate('Buy ticket #travel', baseDate)).toBeUndefined();
+  });
+
+  test('should keep #T[n] when removing date tags', () => {
+    expect(dateParser.removeDate('Buy ticket #T-1')).toBe('Buy ticket #T-1');
+  });
+});
+
+describe('todo.date frontmatter property', () => {
+  const dateParser = new DateParser(`#${DateParser.DateToken}`, 'yyyy-MM-dd');
+
+  test('should parse todo.date from the frontmatter', () => {
+    const contents = `---
+todo:
+  date: 2026-10-08
+---
+
+- [ ] Buy ticket #T-1
+`;
+
+    expect(dateParser.parseTodoDateProperty(contents)?.toISODate()).toBe('2026-10-08');
+  });
+
+  test('should return undefined without frontmatter or without the property', () => {
+    expect(dateParser.parseTodoDateProperty('- [ ] Buy ticket #T-1')).toBeUndefined();
+
+    const withoutProperty = `---
+todo:
+  owner: me
+---
+`;
+    expect(dateParser.parseTodoDateProperty(withoutProperty)).toBeUndefined();
+  });
+
+  test('should return undefined for an invalid date value', () => {
+    const contents = `---
+todo:
+  date: not-a-date
+---
+`;
+    expect(dateParser.parseTodoDateProperty(contents)).toBeUndefined();
+  });
 });

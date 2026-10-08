@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon';
 import { TodoItem, TodoItemStatus } from './TodoItem';
 import { DateParser } from '../util/DateParser';
 
@@ -20,8 +21,11 @@ export class Parser {
     // Stack to track parent context: [{indent, originalDescription}]
     const stack: { indent: number; originalDescription: string }[] = [];
 
+    // 基准日 T：来自笔记 frontmatter 的 todo.date 属性
+    const baseDate = this.dateParser.parseTodoDateProperty(fileContents);
+
     for (const entry of matches) {
-      const item = this.parseTask(filePath, entry, fileContents, stack);
+      const item = this.parseTask(filePath, entry, fileContents, stack, baseDate);
       items.push(item);
 
       // Update stack for next iteration
@@ -40,7 +44,8 @@ export class Parser {
     filePath: string,
     entry: RegExpMatchArray,
     fileContents: string,
-    stack: { indent: number; originalDescription: string }[]
+    stack: { indent: number; originalDescription: string }[],
+    baseDate?: DateTime
   ): TodoItem {
     const todoItemOffset = 2; // Strip off `-|* `
     const status = entry[2] === 'x' ? TodoItemStatus.Done : TodoItemStatus.Todo;
@@ -52,6 +57,10 @@ export class Parser {
     const somedayPattern = /#(someday)/gi;
     const isSomedayMaybeTask = somedayPattern.test(originalDescription);
     const description = descriptionWithoutDate.replace(somedayPattern, '').trim();
+
+    // 解析 #T[n] 相对日期标签。标签本身保留在 description 中（仍是合法 Obsidian 标签），
+    // 仅把算出的真实日期存进 date 字段。
+    const date = this.dateParser.parseRelativeDate(originalDescription, baseDate);
 
     // Calculate startIndex and length
     const matchIndex = entry.index ?? 0;
@@ -91,6 +100,7 @@ export class Parser {
       isSomedayMaybeNote: isSomedayMaybeTask,
       indentation,
       childIds: [],
+      date,
     });
   }
 

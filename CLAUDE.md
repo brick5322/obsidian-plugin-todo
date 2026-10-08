@@ -60,6 +60,14 @@ When a TODO has no explicit date, it inherits from:
 2. Daily note's date (if file is a daily note)
 3. Otherwise unscheduled (Inbox)
 
+## Relative Date Tags
+
+A note may define a base date in its frontmatter (`todo.date`, parsed with the configured `dateFormat`). Tasks
+containing a `#T[n]` tag get `TodoItem.date = baseDate.plus({ days: n })`; the tag itself is preserved in the task
+description. The resolved date is exposed through `TodoTree.getActionDate` (which prefers `TodoItem.date` over the
+absolute date tag), so such tasks land in the Today/Scheduled panes. Without a `todo.date` property, `#T[n]` stays a
+plain tag and nothing is resolved.
+
 ## Testing
 
 Jest tests mock `DailyNoteParser` via `util/__mocks__/DailyNoteParser.ts`. Tests focus on date parsing and task tree building.

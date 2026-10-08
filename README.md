@@ -12,6 +12,28 @@ Text-based GTD in Obsidian.
 - Complete TODOs from the list view
 - Quickly jump to the file in which a TODO is found from the list view
 - Integrates with the Daily Notes plugin: TODOs without a due date will inherit the date of the daily note as due date
+- Schedule a TODO relative to a note's `todo.date` property with `#T[n]` tags (e.g. `#T1`, `#T-7`)
+
+### Relative date tags
+
+A note can define a base date in its frontmatter (Obsidian Properties):
+
+```yaml
+---
+todo:
+  date: 2026-10-08
+---
+```
+
+Tasks in that note can then be scheduled relative to that base date with a `#T[n]` tag. The tag is kept in the task text (it remains a regular Obsidian tag) and the resolved date is shown next to it:
+
+| Tag | Meaning |
+| --- | --- |
+| `#T0` | the base date |
+| `#T1` | one day after the base date |
+| `#T-7` | seven days before the base date |
+
+`#T+1` is not supported, because `+` is not allowed in Obsidian tags. Use `#T1` instead. Without a `todo.date` property, `#T[n]` is just a regular tag and is not resolved.
 
 ### Settings
 **Date tag format**: Customise the format you use to add due dates to your tasks. Defaults to `#%date%`.

@@ -356,6 +356,31 @@ describe('TodoTree', () => {
       // Should use earlier date (child's date)
       expect(actionDate).toEqual(childDate);
     });
+
+    test('should use the date resolved from a #T[n] tag', () => {
+      const relativeDate = DateTime.fromFormat('2026-10-09', 'yyyy-MM-dd');
+
+      const items: TodoItem[] = [
+        new TodoItem({
+          taskId: 'file.md:0',
+          sourceFilePath: 'file.md',
+          startIndex: 0,
+          length: 14,
+          status: TodoItemStatus.Todo,
+          description: 'Buy ticket #T1',
+          originalDescription: 'Buy ticket #T1',
+          isSomedayMaybeNote: false,
+          indentation: 0,
+          childIds: [],
+          date: relativeDate,
+        }),
+      ];
+
+      tree.rebuild(items);
+      const task = tree.getItem('file.md:0')!;
+
+      expect(tree.getActionDate(task)).toEqual(relativeDate);
+    });
   });
 
   describe('subscribe', () => {

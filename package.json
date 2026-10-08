@@ -52,6 +52,8 @@
   "dependencies": {
     "luxon": "^1.26.0",
     "obsidian": "^0.12.17",
-    "obsidian-daily-notes-interface": "^0.9.4"
+    "obsidian-daily-notes-interface": "^0.9.4",
+    "@codemirror/state": "^6.0.0",
+    "@codemirror/view": "^6.0.0"
   }
 }

@@ -4,6 +4,7 @@ import { VIEW_TYPE_TODO } from '../constants';
 import { TodoItem, TodoItemStatus } from '../model/TodoItem';
 import { RenderIcon, Icon } from '../ui/icons';
 import { t } from '../lang/helpers';
+import { removeRelativeDateTags } from '../util/RelativeDatePlan';
 
 enum TodoItemViewPane {
   Today,
@@ -236,11 +237,12 @@ export class TodoItemView extends ItemView {
 
     const infoContainer = header.createDiv('todo-item-block-info');
     const titleEl = infoContainer.createDiv({ cls: 'todo-item-block-title' });
-    titleEl.setText(root.description);
+    const rootDescription = removeRelativeDateTags(root.description);
+    titleEl.setText(rootDescription);
 
     const temp = document.createElement('div');
-    MarkdownRenderer.renderMarkdown(root.description, temp, root.sourceFilePath, this).then(() => {
-      titleEl.setText(temp.textContent || root.description);
+    MarkdownRenderer.renderMarkdown(rootDescription, temp, root.sourceFilePath, this).then(() => {
+      titleEl.setText(temp.textContent || rootDescription);
     });
 
     infoContainer.createDiv({ text: root.sourceFilePath, cls: 'todo-item-block-path' });
@@ -303,7 +305,9 @@ export class TodoItemView extends ItemView {
       errorEl.setText('⚠ ' + item.parseError);
     }
 
-    MarkdownRenderer.renderMarkdown(item.description, descContainer, item.sourceFilePath, this);
+    const descriptionEl = descContainer.createDiv({ cls: 'todo-item-desc-text' });
+    const displayDescription = removeRelativeDateTags(item.description);
+    void MarkdownRenderer.renderMarkdown(displayDescription, descriptionEl, item.sourceFilePath, this);
 
     if (item.childIds.length > 0) {
       const childrenContainer = container.createDiv('todo-item-children');
