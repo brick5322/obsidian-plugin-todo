@@ -113,66 +113,28 @@ export class TodoTree {
     this.invokeListeners();
   }
 
-  /**
-   * Build tree for a single file using stack algorithm
-   *
-   * Indentation rules:
-   * - Store raw indent (actual space count)
-   * - Calculate level: same indent = same level, larger indent = deeper level
-   * - Track all seen indents and their levels
-   * - Valid nesting: child indent > parent indent
-   * - Level skip error: indent not seen before AND not greater than max seen = error (treat as root)
-   */
+  /** Build a tree using Obsidian's fixed two-space indentation levels. */
   private buildTreeForFile(items: TodoItem[]): void {
-    const stack: { item: TodoItem; indent: number }[] = [];
-    // Track indent -> level mapping for all seen indents
-    const indentToLevel: Map<number, number> = new Map();
-    let maxIndent = -1;
+    const stack: TodoItem[] = [];
 
     for (const item of items) {
-      const indent = item.indentation;
+      const level = item.indentation / 2;
+      const hasValidLevel = Number.isInteger(level) && level >= 0;
+      const parent = hasValidLevel && level > 0 ? stack[level - 1] : undefined;
 
-      // Determine level for this indent
-      let level: number;
-      if (indentToLevel.has(indent)) {
-        // Seen before = same level
-        level = indentToLevel.get(indent)!;
-      } else if (indent > maxIndent) {
-        // New indent larger than all seen = next level
-        level = maxIndent === -1 ? 0 : indentToLevel.get(maxIndent)! + 1;
-        indentToLevel.set(indent, level);
-        maxIndent = indent;
+      if (parent) {
+        item.parentId = parent.taskId;
+        parent.childIds.push(item.taskId);
       } else {
-        // Error: indent not seen AND not greater than max
-        // This is "层级跨越" - skip level error
-        // Treat as root and mark parse error
-        level = -1;
-        item.parseError = '层级跨越：缩进级别跳跃';
-      }
-
-      // Find parent in stack
-      if (level >= 0) {
-        // Search stack for parent with smaller indent
-        while (stack.length > 0) {
-          const topIndent = stack[stack.length - 1].indent;
-          if (topIndent < indent) {
-            // Found valid parent
-            const parent = stack[stack.length - 1].item;
-            item.parentId = parent.taskId;
-            parent.childIds.push(item.taskId);
-            break;
-          }
-          stack.pop();
-        }
-      }
-
-      if (!item.parentId) {
-        // No valid parent = root item
         this.rootIds.add(item.taskId);
       }
 
-      // Push to stack
-      stack.push({ item, indent });
+      if (hasValidLevel) {
+        stack.length = level;
+        stack[level] = item;
+      } else {
+        stack.length = 0;
+      }
 
       // Add to indices
       this.hashIndex.set(item.taskId, item);

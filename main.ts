@@ -5,6 +5,7 @@ import { TodoItem, TodoItemStatus } from './model/TodoItem';
 import { TodoTree } from './model/TodoTree';
 import { Parser } from './model/Parser';
 import { Indexer } from './model/Indexer';
+import { TaskFileFilter } from './model/TaskFileFilter';
 import { TodoPluginSettings, DEFAULT_SETTINGS, CompletedTaskRecord } from './model/TodoPluginSettings';
 import { SettingsTab } from './ui/SettingsTab';
 import { DateFormatter } from 'util/DateFormatter';
@@ -36,7 +37,14 @@ export default class TodoPlugin extends Plugin {
     this.todoTree = new TodoTree(this.settings);
     this.dateParser = new DateParser(this.settings.dateTagFormat, this.settings.dateFormat);
     this.parser = new Parser(this.dateParser);
-    this.indexer = new Indexer(this.app.vault, this.todoTree, this.parser);
+    const taskFileFilter = new TaskFileFilter(this.app.vault, this.app.metadataCache);
+    this.indexer = new Indexer(
+      this.app.vault,
+      this.app.metadataCache,
+      this.todoTree,
+      this.parser,
+      taskFileFilter,
+    );
 
     // Subscribe to TodoTree changes
     this.todoTree.subscribe(this.tick.bind(this));
@@ -139,7 +147,8 @@ export default class TodoPlugin extends Plugin {
 
     this.app.workspace.onLayoutReady(async () => {
       await this.initLeaf();
-      await this.triggerIndex();
+      await this.indexer.rebuild();
+      this.indexer.register();
     });
   }
 
@@ -148,16 +157,6 @@ export default class TodoPlugin extends Plugin {
     if (!whitelist || whitelist.trim() === '') return true;
     const dirs = whitelist
       .split(/[,，\n]/)
-      .map((d) => d.trim())
-      .filter((d) => d.length > 0);
-    return dirs.some((dir) => path.startsWith(dir));
-  }
-
-  private isPathExcluded(path: string): boolean {
-    const excludedDirs = this.settings.excludedDirectories || '';
-    if (excludedDirs.trim() === '') return false;
-    const dirs = excludedDirs
-      .split(/[,，]/)
       .map((d) => d.trim())
       .filter((d) => d.length > 0);
     return dirs.some((dir) => path.startsWith(dir));
@@ -270,7 +269,6 @@ export default class TodoPlugin extends Plugin {
   async trackCompletedTaskRecord(todo: TodoItem): Promise<void> {
     if (!this.settings.enableDailyReport) return;
     if (!this.isPathWhitelisted(todo.sourceFilePath)) return;
-    if (this.isPathExcluded(todo.sourceFilePath)) return;
 
     const today = DateTime.now().toFormat('yyyy-MM-dd');
 
@@ -472,9 +470,8 @@ export default class TodoPlugin extends Plugin {
         continue;
       }
 
-      // Skip if not whitelisted or excluded
+      // Skip if not whitelisted
       if (!this.isPathWhitelisted(item.sourceFilePath)) continue;
-      if (this.isPathExcluded(item.sourceFilePath)) continue;
 
       // If parent is also Todo, skip (it will be included with parent)
       if (item.parentId) {
@@ -560,23 +557,6 @@ export default class TodoPlugin extends Plugin {
         enableDailyReport: this.settings.enableDailyReport,
       }));
     }
-  }
-
-  private async triggerIndex(): Promise<void> {
-    // Scan all markdown files and build the tree
-    const files = this.app.vault.getMarkdownFiles();
-    const allItems: TodoItem[] = [];
-
-    for (const f of files) {
-      if (this.isPathExcluded(f.path)) continue;
-
-      const content = await this.app.vault.cachedRead(f);
-      const result = await this.parser.parseFile(f.path, content);
-      allItems.push(...result.items);
-    }
-
-    this.todoTree.rebuild(allItems);
-    this.indexer.register();
   }
 
   tick(todos: TodoItem[]): void {

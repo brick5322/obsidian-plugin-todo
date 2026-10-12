@@ -19,7 +19,6 @@ export interface TodoPluginSettings {
     date: string;
     completedTasks: CompletedTaskRecord[];
   };
-  excludedDirectories: string;
 }
 
 export const DEFAULT_SETTINGS: TodoPluginSettings = {
@@ -35,5 +34,4 @@ export const DEFAULT_SETTINGS: TodoPluginSettings = {
     date: '',
     completedTasks: [],
   },
-  excludedDirectories: '',
 };

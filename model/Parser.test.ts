@@ -84,8 +84,7 @@ describe('Parser', () => {
 describe('Parser relative date tags', () => {
   test('should resolve #T[n] against the todo.date property', async () => {
     const content = `---
-todo:
-  date: 2026-10-08
+todo.date: 2026-10-08
 ---
 
 - [ ] Buy train ticket #T-1
@@ -104,8 +103,7 @@ todo:
 
   test('should keep #T[n] in the description instead of removing it', async () => {
     const content = `---
-todo:
-  date: 2026-10-08
+todo.date: 2026-10-08
 ---
 
 - [ ] Buy train ticket #T-1
@@ -126,8 +124,7 @@ todo:
 
   test('should resolve #T[n] for nested tasks independently', async () => {
     const content = `---
-todo:
-  date: 2026-10-08
+todo.date: 2026-10-08
 ---
 
 - [ ] Parent #T-3

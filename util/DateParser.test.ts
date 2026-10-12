@@ -107,8 +107,7 @@ describe('todo.date frontmatter property', () => {
 
   test('should parse todo.date from the frontmatter', () => {
     const contents = `---
-todo:
-  date: 2026-10-08
+todo.date: 2026-10-08
 ---
 
 - [ ] Buy ticket #T-1

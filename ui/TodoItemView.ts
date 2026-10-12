@@ -299,12 +299,6 @@ export class TodoItemView extends ItemView {
       else if (dateClass === 'todo-date-today') descContainer.classList.add('todo-text-today');
     }
 
-    // Show parse error if present
-    if (item.parseError) {
-      const errorEl = descContainer.createDiv({ cls: 'todo-parse-error' });
-      errorEl.setText('⚠ ' + item.parseError);
-    }
-
     const descriptionEl = descContainer.createDiv({ cls: 'todo-item-desc-text' });
     const displayDescription = removeRelativeDateTags(item.description);
     void MarkdownRenderer.renderMarkdown(displayDescription, descriptionEl, item.sourceFilePath, this);

@@ -18,7 +18,6 @@ export interface TodoItemProps {
   indentation?: number;      // 用于树构建，Parser 会提供
   parentId?: string;
   childIds?: string[];
-  parseError?: string;       // 解析错误信息，如"层级跨越"
   date?: DateTime;           // 相对日期标签 #T[n] 解析出的真实日期（基准日来自笔记 todo.date 属性）
 }
 
@@ -34,7 +33,6 @@ export class TodoItem {
   public indentation: number;
   public parentId?: string;
   public childIds: string[];
-  public parseError?: string;  // 解析错误信息
   public date?: DateTime;      // 相对日期标签 #T[n] 解析出的真实日期
 
   constructor(props: TodoItemProps) {
@@ -49,7 +47,6 @@ export class TodoItem {
     this.indentation = props.indentation ?? 0;
     this.parentId = props.parentId;
     this.childIds = props.childIds ?? [];
-    this.parseError = props.parseError;
     this.date = props.date;
   }
 }
